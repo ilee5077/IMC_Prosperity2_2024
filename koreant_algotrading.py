@@ -13,7 +13,7 @@ from typing import List
 import string
 import jsonpickle
 import numpy as np
-
+import math
 
 class Trader:
 
@@ -134,7 +134,7 @@ class Trader:
 			# MATCHING ASK ORDERS
             # sell for less than the price we willing to buy OR
             # sell for same as we want to buy and our position is short
-			if ((ask <= acc_bid) or ((cpos<0) and (ask == acc_bid+1))) and cpos_update < pos_limt:
+			if ((ask < acc_bid) or ((cpos<0) and (ask == acc_bid))) and cpos_update < pos_limt:
 				mx_with_buy = max(mx_with_buy, ask) # buy price
 				order_for = min(-vol, pos_limt - cpos) # how many do we buy for
 				cpos_update += order_for
@@ -161,7 +161,7 @@ class Trader:
 			# MATCHING BUY ORDERS
 			# someone is willing to buy more than what we ask
 			# we are long and someone buying at price we think
-			if ((bid >= acc_ask) or ((cpos>0) and (bid+1 == acc_ask))) and cpos_update > -pos_limt:
+			if ((bid > acc_ask) or ((cpos>0) and (bid == acc_ask))) and cpos_update > -pos_limt:
 				order_for = max(-vol, -pos_limt-cpos_update)
 				# order_for is a negative number denoting how much we will sell
 				cpos_update += order_for
@@ -182,8 +182,8 @@ class Trader:
 	def run(self, state: TradingState):
 		
 		product_keys = [
-			'AMETHYSTS'
-			,'STARFRUIT']
+			#'AMETHYSTS'
+			'STARFRUIT']
 		
 		# Orders to be placed on exchange matching engine
 		result = {}
@@ -235,12 +235,12 @@ class Trader:
 		nxt_SF_price = 0
 		if len(mydata['starfruit_cache']) > mydata['starfruit_dim']:
 			mydata['starfruit_cache'].pop(0)
-			nxt_SF_price = int(round(sum(mydata['starfruit_cache'])/float(len(mydata['starfruit_cache']))))
+			nxt_SF_price = round(sum(mydata['starfruit_cache'])/float(len(mydata['starfruit_cache'])),1)
 			gradient, intercept = np.polyfit(list(range(mydata['starfruit_dim'])),mydata['starfruit_cache'],1)
 			nxt_SF_price2 = int(round(gradient * 6 + intercept,0))
 			print(f"next price SF: {nxt_SF_price}, next price LR: {round(gradient * 6 + intercept,0)},history: {mydata['starfruit_cache']}, gradient: {gradient}")			
 			# now we know the next SF price is going to be - so we can start trade!
-			result['STARFRUIT'] = self.compute_orders_starfruit(state, acc_bid = nxt_SF_price-1, acc_ask = nxt_SF_price+1, POSITION_LIMIT = mydata['position_limit'])
+			result['STARFRUIT'] = self.compute_orders_starfruit(state, acc_bid = int(math.floor(nxt_SF_price)), acc_ask = int(math.ceil(nxt_SF_price)), POSITION_LIMIT = mydata['position_limit'])
 			
 		#print(mydata['starfruit_cache'], nxt_SF_price)
 
