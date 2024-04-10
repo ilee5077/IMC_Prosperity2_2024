@@ -14,3 +14,28 @@ m > 0 then increasing
 m < 0 decreasing
 
 list(range(5))
+
+
+a = [1,5,5,8,5]
+b = round(sum(a)/len(a),1)
+
+import math
+int(math.floor(b))
+int(math.ceil(b))
+
+
+import datamodel
+
+a = datamodel.Trade('AME','10001','3')
+a['AME']
+
+a = [1]
+if len(a) > 0:
+    print(a[0])
+
+
+a = []
+b = []
+for i in b:
+    a.append(i)
+print(a,b)
