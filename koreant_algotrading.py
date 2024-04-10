@@ -12,7 +12,7 @@ from datamodel import OrderDepth, UserId, TradingState, Order
 from typing import List
 import string
 import jsonpickle
-
+import numpy as np
 
 
 class Trader:
@@ -202,8 +202,8 @@ class Trader:
 	def run(self, state: TradingState):
 		
 		product_keys = [
-			'AMETHYSTS']
-		#	'STARFRUIT']
+		#	'AMETHYSTS']
+			'STARFRUIT']
 		
 		# Orders to be placed on exchange matching engine
 		result = {}
@@ -219,7 +219,7 @@ class Trader:
 
 		#Only method required. It takes all buy and sell orders for all symbols as an input,
 		#and outputs a list of orders to be sent
-		want_to_see_product = 'AMETHYSTS'
+		want_to_see_product = 'STARFRUIT'
 		print('\n')
 		print(f"timestamp: {state.timestamp}")
 		#print("LISTING")
@@ -253,16 +253,18 @@ class Trader:
 
 		mydata['starfruit_cache'].append((best_buy_pr+best_sell_pr)/2.0)
 		nxt_SF_price = 0
-		if len(mydata['starfruit_cache']) >= mydata['starfruit_dim']:
+		if len(mydata['starfruit_cache']) > mydata['starfruit_dim']:
 			mydata['starfruit_cache'].pop(0)
 			nxt_SF_price = int(round(sum(mydata['starfruit_cache'])/float(len(mydata['starfruit_cache']))))
-
+			gradient, intercept = np.polyfit(list(range(mydata['starfruit_dim'])),mydata['starfruit_cache'],1)
+			nxt_SF_price2 = int(round(gradient * 6 + intercept,0))
+			print(f"next price SF: {nxt_SF_price}, next price LR: {round(gradient * 6 + intercept,0)},history: {mydata['starfruit_cache']}, gradient: {gradient}")			
 			# now we know the next SF price is going to be - so we can start trade!
 			result['STARFRUIT'] = self.compute_orders_starfruit(state, acc_bid = nxt_SF_price-1, acc_ask = nxt_SF_price+1, POSITION_LIMIT = mydata['position_limit'])
 			
 		#print(mydata['starfruit_cache'], nxt_SF_price)
 
-
+		
 		
 		
 		
@@ -276,7 +278,7 @@ class Trader:
 
 		result = {k: v for k, v in result.items() if k in (product_keys)}
 
-		print(result)
+		print(f"order: {result}")
 		return result, conversions, traderData
 	
 
