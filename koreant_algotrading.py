@@ -57,17 +57,17 @@ class Trader:
 		undercut_buy = best_buy_pr + 1
 
 		# buy orders
-		if (cpos < pos_limt) and (cpos < 0): # short position
+		if (cpos_update < pos_limt) and (cpos < 0): # short position
 			num = min(40, pos_limt - cpos_update)
 			orders.append(Order(product, min(undercut_buy + 1, acc_bid-1), num))
 			cpos_update += num
 
-		if (cpos < pos_limt) and (cpos > 15): # long position
+		if (cpos_update < pos_limt) and (cpos > 15): # long position
 			num = min(40, pos_limt - cpos_update)
 			orders.append(Order(product, min(undercut_buy - 1, acc_bid-1), num))
 			cpos_update += num
 
-		if cpos < pos_limt: # position between 1 to 14
+		if cpos_update < pos_limt: # position between 1 to 14
 			num = min(40, pos_limt - cpos_update)
 			orders.append(Order(product, min(undercut_buy, acc_bid-1), num))
 			cpos_update += num
@@ -134,7 +134,7 @@ class Trader:
 			# MATCHING ASK ORDERS
             # sell for less than the price we willing to buy OR
             # sell for same as we want to buy and our position is short
-			if ((ask < acc_bid) or ((cpos<0) and (ask == acc_bid))) and cpos_update < pos_limt:
+			if ((ask <= acc_bid) or ((cpos<0) and (ask == acc_bid+1))) and cpos_update < pos_limt:
 				mx_with_buy = max(mx_with_buy, ask) # buy price
 				order_for = min(-vol, pos_limt - cpos) # how many do we buy for
 				cpos_update += order_for
@@ -147,19 +147,9 @@ class Trader:
 		undercut_buy = best_buy_pr + 1
 
 		# buy orders
-		if (cpos < pos_limt) and (cpos < 0): # short position
-			num = min(40, pos_limt - cpos_update)
-			orders.append(Order(product, min(undercut_buy + 1, acc_bid-1), num))
-			cpos_update += num
-
-		if (cpos < pos_limt) and (cpos > 15): # long position
-			num = min(40, pos_limt - cpos_update)
-			orders.append(Order(product, min(undercut_buy - 1, acc_bid-1), num))
-			cpos_update += num
-
-		if cpos < pos_limt: # position between 1 to 14
-			num = min(40, pos_limt - cpos_update)
-			orders.append(Order(product, min(undercut_buy, acc_bid-1), num))
+		if cpos_update < pos_limt:
+			num = pos_limt - cpos_update
+			orders.append(Order(product, min(undercut_buy, acc_bid), num))
 			cpos_update += num
 
 		cpos= 0
@@ -171,7 +161,7 @@ class Trader:
 			# MATCHING BUY ORDERS
 			# someone is willing to buy more than what we ask
 			# we are long and someone buying at price we think
-			if ((bid > acc_ask) or ((cpos>0) and (bid == acc_ask))) and cpos_update > -pos_limt:
+			if ((bid >= acc_ask) or ((cpos>0) and (bid+1 == acc_ask))) and cpos_update > -pos_limt:
 				order_for = max(-vol, -pos_limt-cpos_update)
 				# order_for is a negative number denoting how much we will sell
 				cpos_update += order_for
@@ -180,19 +170,9 @@ class Trader:
 
 		undercut_sell = best_sell_pr - 1
 		# placing orders
-		if (cpos_update > -pos_limt) and (cpos > 0): # long position
-			num = max(-40, -pos_limt-cpos_update) # sell 40 or 
-			orders.append(Order(product, max(undercut_sell-1, acc_ask+1), num))
-			cpos_update += num
-
-		if (cpos_update > -pos_limt) and (cpos < -15):
-			num = max(-40, -pos_limt-cpos_update)
-			orders.append(Order(product, max(undercut_sell+1, acc_ask+1), num))
-			cpos_update += num
-
 		if cpos_update > -pos_limt:
-			num = max(-40, -pos_limt-cpos_update)
-			orders.append(Order(product, max(undercut_sell, acc_ask+1), num))
+			num = -pos_limt-cpos_update
+			orders.append(Order(product, max(undercut_sell, acc_ask), num))
 			cpos_update += num
 
 		return orders
@@ -202,8 +182,8 @@ class Trader:
 	def run(self, state: TradingState):
 		
 		product_keys = [
-		#	'AMETHYSTS']
-			'STARFRUIT']
+			'AMETHYSTS'
+			,'STARFRUIT']
 		
 		# Orders to be placed on exchange matching engine
 		result = {}
