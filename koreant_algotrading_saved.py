@@ -287,17 +287,12 @@ class Trader:
         product = 'ORCHIDS'
         observations = state.observations.conversionObservations[product]
         conversions = None
-        buy_orders = list(state.order_depths[product].buy_orders.items())
-        best_buy_pr, buy_vol = buy_orders[0]
-
-        sell_orders = list(state.order_depths[product].sell_orders.items())
-        best_sell_pr, sell_vol = sell_orders[0]
         #price we are paying to buy
         real_ask_price = observations.askPrice + observations.importTariff + observations.transportFees
         
         #price we are getting to sell
         real_bid_price = observations.bidPrice - observations.exportTariff - observations.transportFees
-        # INSTEAD OF RUNNING PRICE COMPARE ACTUAL NOW
+        
         if state.position.get(product,0) > 0:
             if (real_bid_price >= avg_running_price) and (real_bid_price > acc_ask):
                 conversions = -state.position[product]
@@ -313,7 +308,7 @@ class Trader:
         
         #if state.position[product] != 0:
         #    conversion = self.compute_arb_conversion_order()
-        #conversions, real_ask_price, real_bid_price = self.#compute_arb_conversion_order(state, avg_running_price = #avg_running_price, acc_bid =acc_bid, acc_ask=acc_ask)
+        conversions, real_ask_price, real_bid_price = self.compute_arb_conversion_order(state, avg_running_price = avg_running_price, acc_bid =acc_bid, acc_ask=acc_ask)
 
         orders: list[Order] = []
 
@@ -325,47 +320,40 @@ class Trader:
 
         pos_limt = POSITION_LIMIT[product]
 
-        observations = state.observations.conversionObservations[product]
-        #price we are paying to buy
-        real_ask_price = observations.askPrice + observations.importTariff + observations.transportFees
-        #price we are getting to sell
-        real_bid_price = observations.bidPrice - observations.exportTariff - observations.transportFees
-        
-        conversions = 0
-        
-        buy_cpos_update = state.position.get(product,0)
-        cpos = state.position.get(product,0)
+        cpos= 0
+        if product in state.position.keys() and conversions is None:
+            cpos = state.position[product]
+
+        mx_with_buy = -1
+        buy_cpos_update = cpos
         for ask, vol in sell_orders:
+            # MATCHING ASK ORDERS
+            # sell for less than the price we willing to buy OR
+            # sell for same as we want to buy and our position is short
             if ((ask < acc_bid) or ((cpos<0) and (ask == acc_bid)) or (real_bid_price > ask)) and buy_cpos_update < pos_limt:
-                order_for = min(-vol, pos_limt - buy_cpos_update) # how many do we buy for
+            #if ((ask < acc_bid) or ((cpos<0) and (ask == acc_bid)) or (real_bid_price > ask + 1)) and buy_cpos_update < pos_limt:
+                mx_with_buy = max(mx_with_buy, ask) # buy price
+                order_for = min(-vol, pos_limt - cpos) # how many do we buy for
                 buy_cpos_update += order_for
                 assert(order_for >= 0)
                 orders.append(Order(product, ask, order_for))
-                #positive position I want to sell to island B
-                # sell to island B if bid price is higher than ask price in island A
-                if (ask < real_bid_price) and (state.position.get(product,0) > 0):
-                    order_for = min(-vol,cpos)
-                    conversions -= order_for
-                    cpos -= order_for
 
-        
-        sell_cpos_update = state.position.get(product,0)
-        cpos = state.position.get(product,0)
+        cpos= 0
+        if product in state.position.keys() and conversions is None:
+            cpos = state.position[product]
+        sell_cpos_update = cpos
+        # short positioning
         for bid, vol in buy_orders:
+            # MATCHING BUY ORDERS
+            # someone is willing to buy more than what we ask
+            # we are long and someone buying at price we think
             if ((bid > acc_ask) or ((cpos>0) and (bid == acc_ask)) or (real_ask_price < bid))  and sell_cpos_update > -pos_limt:
+            #if ((bid > acc_ask) or ((cpos>0) and (bid == acc_ask)) or (real_ask_price < bid - 1))  and sell_cpos_update > -pos_limt:
                 order_for = max(-vol, -pos_limt-sell_cpos_update)
                 # order_for is a negative number denoting how much we will sell
                 sell_cpos_update += order_for
                 assert(order_for <= 0)
                 orders.append(Order(product, bid, order_for))
-                #negative position I want to buy from island B
-                # buy from island B if ask price is lower than bid price in island A
-                if (bid > real_ask_price) and (state.position.get(product,0) < 0):
-                    order_for = max(-vol,cpos)
-                    conversions += -order_for
-                    cpos += -order_for
-
-
         
         sum = 0
         sumvol = 0
@@ -393,47 +381,36 @@ class Trader:
         undercut_sell = mprice + 1
         undercut_buy = mprice - 1    
 
-        next_real_ask_pr = nxt_OC_price + observations.importTariff + observations.transportFees
-        next_real_bid_pr = nxt_OC_price - observations.exportTariff - observations.transportFees
 
-
-
-
-        # I will sell for less than best price in the market now
-        # because I can buy at even cheaper price next round
         
-        if sell_cpos_update > -pos_limt:
-            num = max(-200, -pos_limt-sell_cpos_update)
-            # if price is going up next round I am
-            orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.7)))
-            orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.3)))
-            # if nxt_OC_price > mprice:
-            #     orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.7)))
-            #     orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.3)))
-            # else:
-            #     #conservative less trades
-            #     orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.3)))
-            #     #aggressive more trades
-            #     orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.7)))
-            
-            sell_cpos_update += num
+        # buy is profitable
+        if real_ask_price < best_sell_pr:
+            if sell_cpos_update > -pos_limt:
+                num = max(-200, -pos_limt-sell_cpos_update)
 
-
-        # I will buy for more than best price in the market now
-        # because I can sell at higher price next round
-        if buy_cpos_update < pos_limt:
-            num = min(200, pos_limt - buy_cpos_update)
-            orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-            orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-            # if nxt_OC_price > mprice:
-            #     orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-            #     orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-            # else:
-            #     orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-            #     orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-            buy_cpos_update += num
-
-        print(f";real_bid;{real_bid_price};real_ask;{real_ask_price};conversions;{conversions}")
+                if nxt_OC_price > mprice:
+                    orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.7)))
+                    orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.3)))
+                else:
+                    #conservative less tradesround(
+                    orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.3)))
+                    #aggressive more tradesround(
+                    orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.7)))
+                
+                sell_cpos_update += num
+        
+        # sell is profitable
+        if real_bid_price > best_buy_pr:
+            if buy_cpos_update < pos_limt:
+                num = min(200, pos_limt - buy_cpos_update)
+                
+                if nxt_OC_price > mprice:
+                    orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
+                    orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
+                else:
+                    orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
+                    orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
+                buy_cpos_update += num
 
         return orders, conversions
 
@@ -460,10 +437,10 @@ class Trader:
 
 
         #COMMENT BELOW WHEN SUBMITTING
-        product_keys = [
+        #product_keys = [
             #'AMETHYSTS'
             #,'STARFRUIT'
-               'ORCHIDS']
+        #       'ORCHIDS']
         
         #Only method required. It takes all buy and sell orders for all symbols as an input,
         #and outputs a list of orders to be sent
@@ -544,7 +521,7 @@ class Trader:
 
 
 
-        result = {k: v for k, v in result.items() if k in (product_keys)}
+        #result = {k: v for k, v in result.items() if k in (product_keys)}
 
         print(f";order;{result}")
         return result, conversions, traderData

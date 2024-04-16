@@ -14,7 +14,115 @@ import jsonpickle
 import numpy as np
 import statistics
 import math
+import json
 
+from datamodel import Listing, Observation, Order, OrderDepth, ProsperityEncoder, Symbol, Trade, TradingState
+from typing import Any
+
+class Logger:
+    def __init__(self) -> None:
+        self.logs = ""
+        self.max_log_length = 3750
+
+    def print(self, *objects: Any, sep: str = " ", end: str = "\n") -> None:
+        self.logs += sep.join(map(str, objects)) + end
+
+    def flush(self, state: TradingState, orders: dict[Symbol, list[Order]], conversions: int, trader_data: str) -> None:
+        base_length = len(self.to_json([
+            self.compress_state(state, ""),
+            self.compress_orders(orders),
+            conversions,
+            "",
+            "",
+        ]))
+
+        # We truncate state.traderData, trader_data, and self.logs to the same max. length to fit the log limit
+        max_item_length = (self.max_log_length - base_length) // 3
+
+        print(self.to_json([
+            self.compress_state(state, self.truncate(state.traderData, max_item_length)),
+            self.compress_orders(orders),
+            conversions,
+            self.truncate(trader_data, max_item_length),
+            self.truncate(self.logs, max_item_length),
+        ]))
+
+        self.logs = ""
+
+    def compress_state(self, state: TradingState, trader_data: str) -> list[Any]:
+        return [
+            state.timestamp,
+            trader_data,
+            self.compress_listings(state.listings),
+            self.compress_order_depths(state.order_depths),
+            self.compress_trades(state.own_trades),
+            self.compress_trades(state.market_trades),
+            state.position,
+            self.compress_observations(state.observations),
+        ]
+
+    def compress_listings(self, listings: dict[Symbol, Listing]) -> list[list[Any]]:
+        compressed = []
+        for listing in listings.values():
+            compressed.append([listing["symbol"], listing["product"], listing["denomination"]])
+
+        return compressed
+
+    def compress_order_depths(self, order_depths: dict[Symbol, OrderDepth]) -> dict[Symbol, list[Any]]:
+        compressed = {}
+        for symbol, order_depth in order_depths.items():
+            compressed[symbol] = [order_depth.buy_orders, order_depth.sell_orders]
+
+        return compressed
+
+    def compress_trades(self, trades: dict[Symbol, list[Trade]]) -> list[list[Any]]:
+        compressed = []
+        for arr in trades.values():
+            for trade in arr:
+                compressed.append([
+                    trade.symbol,
+                    trade.price,
+                    trade.quantity,
+                    trade.buyer,
+                    trade.seller,
+                    trade.timestamp,
+                ])
+
+        return compressed
+
+    def compress_observations(self, observations: Observation) -> list[Any]:
+        conversion_observations = {}
+        for product, observation in observations.conversionObservations.items():
+            conversion_observations[product] = [
+                observation.bidPrice,
+                observation.askPrice,
+                observation.transportFees,
+                observation.exportTariff,
+                observation.importTariff,
+                observation.sunlight,
+                observation.humidity,
+            ]
+
+        return [observations.plainValueObservations, conversion_observations]
+
+    def compress_orders(self, orders: dict[Symbol, list[Order]]) -> list[list[Any]]:
+        compressed = []
+        for arr in orders.values():
+            for order in arr:
+                compressed.append([order.symbol, order.price, order.quantity])
+
+        return compressed
+
+    def to_json(self, value: Any) -> str:
+        return json.dumps(value, cls=ProsperityEncoder, separators=(",", ":"))
+
+    def truncate(self, value: str, max_length: int) -> str:
+        if len(value) <= max_length:
+            return value
+
+        return value[:max_length - 3] + "..."
+
+logger = Logger()
 
 class Trader:
 
@@ -280,7 +388,7 @@ class Trader:
         observed_values.append(humdiff)
         
         nxt_price = int(round(intercept + math.sumprod(coef,observed_values),0))
-        print(f";OC mprice;{(best_buy_pr+best_sell_pr)/2};wmprice;{mprice};nextprice;{nxt_price}")
+        logger.print(f";OC mprice;{(best_buy_pr+best_sell_pr)/2};wmprice;{mprice};nextprice;{nxt_price}")
         return nxt_price
     
     def compute_arb_conversion_order(self, state: TradingState, avg_running_price, acc_bid, acc_ask):
@@ -305,7 +413,7 @@ class Trader:
         if state.position.get(product,0) < 0:
             if (real_ask_price < avg_running_price) and (real_ask_price < acc_bid):
                 conversions = -state.position[product]
-        print(f";real_bid;{real_bid_price};bid_profit;{- observations.exportTariff - observations.transportFees};real_ask;{real_ask_price};ask_profit;{observations.importTariff + observations.transportFees};avg_running_price;{avg_running_price};conversions;{conversions}")
+        logger.print(f";real_bid;{real_bid_price};bid_profit;{- observations.exportTariff - observations.transportFees};real_ask;{real_ask_price};ask_profit;{observations.importTariff + observations.transportFees};avg_running_price;{avg_running_price};conversions;{conversions}")
         return conversions, real_ask_price, real_bid_price
 
     def compute_orders_orchids(self, state: TradingState, nxt_OC_price, acc_bid, acc_ask, POSITION_LIMIT, avg_running_price):
@@ -393,47 +501,48 @@ class Trader:
         undercut_sell = mprice + 1
         undercut_buy = mprice - 1    
 
-        next_real_ask_pr = nxt_OC_price + observations.importTariff + observations.transportFees
-        next_real_bid_pr = nxt_OC_price - observations.exportTariff - observations.transportFees
 
-
-
-
-        # I will sell for less than best price in the market now
-        # because I can buy at even cheaper price next round
+        if buy_cpos_update < pos_limt:
+            num = pos_limt - buy_cpos_update
+            orders.append(Order(product, min(best_buy_pr + 1, acc_bid), num))
+            buy_cpos_update += num
         
         if sell_cpos_update > -pos_limt:
-            num = max(-200, -pos_limt-sell_cpos_update)
-            # if price is going up next round I am
-            orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.7)))
-            orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.3)))
-            # if nxt_OC_price > mprice:
-            #     orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.7)))
-            #     orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.3)))
-            # else:
-            #     #conservative less trades
-            #     orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.3)))
-            #     #aggressive more trades
-            #     orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1)),0)), int(num*0.7)))
-            
+            num = -pos_limt-sell_cpos_update
+            orders.append(Order(product, max(best_sell_pr - 1, acc_ask), num))
             sell_cpos_update += num
+        
+        # buy is profitable
+        '''
+        if real_ask_price < best_buy_pr:
+               if sell_cpos_update > -pos_limt:
+                num = max(-200, -pos_limt-sell_cpos_update)
 
-
-        # I will buy for more than best price in the market now
-        # because I can sell at higher price next round
-        if buy_cpos_update < pos_limt:
-            num = min(200, pos_limt - buy_cpos_update)
-            orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-            orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-            # if nxt_OC_price > mprice:
-            #     orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-            #     orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-            # else:
-            #     orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-            #     orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-            buy_cpos_update += num
-
-        print(f";real_bid;{real_bid_price};real_ask;{real_ask_price};conversions;{conversions}")
+                if nxt_OC_price > mprice:
+                    orders.append(Order(product, int(max(real_ask_price + 1, best_sell_pr - 1)), int(num*0.3)))
+                    orders.append(Order(product, int(min(real_ask_price + 1, best_sell_pr - 1)), int(num*0.7)))
+                else:
+                    #conservative less trades
+                    orders.append(Order(product, int(max(real_ask_price + 1, best_sell_pr - 1)), int(num*0.3)))
+                    #aggressive more trades
+                    orders.append(Order(product, int(min(real_ask_price + 1, best_sell_pr - 1)), int(num*0.7)))
+                
+                sell_cpos_update += num
+        
+        # sell is profitable
+        if real_bid_price > best_sell_pr:
+            if buy_cpos_update < pos_limt:
+                num = min(200, pos_limt - buy_cpos_update)
+                
+                if nxt_OC_price > mprice:
+                    orders.append(Order(product, min(real_bid_price - 1, best_buy_pr + 1), int(num*0.3)))
+                    orders.append(Order(product, max(real_bid_price - 1, best_buy_pr + 1), int(num*0.7)))
+                else:
+                    orders.append(Order(product, min(real_bid_price - 1, best_buy_pr + 1), int(num*0.3)))
+                    orders.append(Order(product, max(real_bid_price - 1, best_buy_pr + 1), int(num*0.7)))
+                buy_cpos_update += num
+        '''
+        logger.print(f";real_bid;{real_bid_price};real_ask;{real_ask_price};conversions;{conversions}")
 
         return orders, conversions
 
@@ -468,14 +577,14 @@ class Trader:
         #Only method required. It takes all buy and sell orders for all symbols as an input,
         #and outputs a list of orders to be sent
         want_to_see_product = 'ORCHIDS'
-        print(f";timestamp;{state.timestamp}")
+        logger.print(f";timestamp;{state.timestamp}")
         #print("LISTING")
         #print(state.listings)
-        print(f";buyorders;{list(state.order_depths[want_to_see_product].buy_orders.items())};sellorders;{list(state.order_depths[want_to_see_product].sell_orders.items())};own_trades;{state.own_trades.get(want_to_see_product,"")};")
-        print(f";Baskprice;{state.observations.conversionObservations[want_to_see_product].askPrice};Bbidprice;{state.observations.conversionObservations[want_to_see_product].bidPrice};exportT;{state.observations.conversionObservations[want_to_see_product].exportTariff};importT;{state.observations.conversionObservations[want_to_see_product].importTariff};transportF;{state.observations.conversionObservations[want_to_see_product].transportFees};")
-        print(f";position;{state.position.get(want_to_see_product,"")}")
-        print(f";market_trades;{state.own_trades.get(want_to_see_product,"")}")
-        print(f";market_trades;{state.market_trades.get(want_to_see_product,"")}")
+        logger.print(f";buyorders;{list(state.order_depths[want_to_see_product].buy_orders.items())};sellorders;{list(state.order_depths[want_to_see_product].sell_orders.items())};own_trades;{state.own_trades.get(want_to_see_product,"")};")
+        logger.print(f";Baskprice;{state.observations.conversionObservations[want_to_see_product].askPrice};Bbidprice;{state.observations.conversionObservations[want_to_see_product].bidPrice};exportT;{state.observations.conversionObservations[want_to_see_product].exportTariff};importT;{state.observations.conversionObservations[want_to_see_product].importTariff};transportF;{state.observations.conversionObservations[want_to_see_product].transportFees};")
+        logger.print(f";position;{state.position.get(want_to_see_product,"")}")
+        logger.print(f";market_trades;{state.own_trades.get(want_to_see_product,"")}")
+        logger.print(f";market_trades;{state.market_trades.get(want_to_see_product,"")}")
         
 
 
@@ -546,6 +655,6 @@ class Trader:
 
         result = {k: v for k, v in result.items() if k in (product_keys)}
 
-        print(f";order;{result}")
+        logger.(f";order;{result}")
         return result, conversions, traderData
     
