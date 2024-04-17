@@ -55,6 +55,8 @@ b = pd.concat([day_comb_cc[['day_cc','timestamp_cc','mid_price_cc','nom_change_c
 b = b[b['timestamp_cc'] != 999900]
 b
 
+b.corr()
+
 b[[
 'nom_change_cc'
 ,'nom_change_sb'

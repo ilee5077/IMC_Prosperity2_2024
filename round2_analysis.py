@@ -6,11 +6,149 @@ import numpy as np
 from sklearn import datasets, linear_model
 import statsmodels.api as sm
 from scipy import stats
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import statsmodels.formula.api as smf
+
+#whenever then sunlight exposure is less than 7 hours a day, production will decrease with 4% for every 10 mins
+#ideal humidity for orchid to grow is between 60 and 80, outside the limit production will fall 2% for every 5% point of humidity change
 
 # Read the CSV data using pandas, specifying delimiter as ';'
 df_day_0 = pd.read_csv("round-2-island-data-bottle\\prices_round_2_day_-1.csv", delimiter=";")
 df_day_1 = pd.read_csv("round-2-island-data-bottle\\prices_round_2_day_0.csv", delimiter=";")
 df_day_2 = pd.read_csv("round-2-island-data-bottle\\prices_round_2_day_1.csv", delimiter=";")
+
+df_day_0['good_sl_flag'] = np.where(df_day_0['SUNLIGHT'] >= 2500, 1, 0)
+df_day_0['tot_good_sl'] = df_day_0['good_sl_flag'].cumsum()
+df_day_1['good_sl_flag'] = np.where(df_day_1['SUNLIGHT'] >= 2500, 1, 0)
+df_day_1['tot_good_sl'] = df_day_1['good_sl_flag'].cumsum()
+df_day_2['good_sl_flag'] = np.where(df_day_2['SUNLIGHT'] >= 2500, 1, 0)
+df_day_2['tot_good_sl'] = df_day_2['good_sl_flag'].cumsum()
+
+df_day_0['ORCHIDS+5'] =         df_day_0['ORCHIDS'].shift(-5)
+df_day_0['ORCHIDS+1'] =         df_day_0['ORCHIDS'].shift(-1)
+df_day_0['SUNLIGHT+1'] =        df_day_0['SUNLIGHT'].shift(-1)
+df_day_0['HUMIDITY+1'] =        df_day_0['HUMIDITY'].shift(-1)
+df_day_0['TRANSPORT_FEES+1'] =  df_day_0['TRANSPORT_FEES'].shift(-1)
+df_day_0['EXPORT_TARIFF+1'] =   df_day_0['EXPORT_TARIFF'].shift(-1)
+df_day_0['IMPORT_TARIFF+1'] =   df_day_0['IMPORT_TARIFF'].shift(-1)
+
+df_day_1['ORCHIDS+5'] =         df_day_1['ORCHIDS'].shift(-5)
+df_day_1['ORCHIDS+1'] =         df_day_1['ORCHIDS'].shift(-1)
+df_day_1['SUNLIGHT+1'] =        df_day_1['SUNLIGHT'].shift(-1)
+df_day_1['HUMIDITY+1'] =        df_day_1['HUMIDITY'].shift(-1)
+df_day_1['TRANSPORT_FEES+1'] =  df_day_1['TRANSPORT_FEES'].shift(-1)
+df_day_1['EXPORT_TARIFF+1'] =   df_day_1['EXPORT_TARIFF'].shift(-1)
+df_day_1['IMPORT_TARIFF+1'] =   df_day_1['IMPORT_TARIFF'].shift(-1)
+
+df_day_2['ORCHIDS+5'] =         df_day_2['ORCHIDS'].shift(-5)
+df_day_2['ORCHIDS+1'] =         df_day_2['ORCHIDS'].shift(-1)
+df_day_2['SUNLIGHT+1'] =        df_day_2['SUNLIGHT'].shift(-1)
+df_day_2['HUMIDITY+1'] =        df_day_2['HUMIDITY'].shift(-1)
+df_day_2['TRANSPORT_FEES+1'] =  df_day_2['TRANSPORT_FEES'].shift(-1)
+df_day_2['EXPORT_TARIFF+1'] =   df_day_2['EXPORT_TARIFF'].shift(-1)
+df_day_2['IMPORT_TARIFF+1'] =   df_day_2['IMPORT_TARIFF'].shift(-1)
+
+df_day_combined = pd.concat([df_day_0.dropna(inplace = False, axis=0),df_day_1.dropna(inplace = False, axis=0),df_day_2.dropna(inplace = False, axis=0)])
+
+
+
+#df_day_combined.iloc[::5, :]
+df_day_combined = df_day_combined.iloc[::5, :]
+
+df_day_combined['or_nom_change'] = df_day_combined['ORCHIDS+5'] - df_day_combined['ORCHIDS']
+df_day_combined['or_perc_change'] = df_day_combined['or_nom_change']/df_day_combined['ORCHIDS']
+df_day_combined['sl_nom_change'] = df_day_combined['SUNLIGHT+1'] - df_day_combined['SUNLIGHT']
+df_day_combined['sl_perc_change'] = df_day_combined['sl_nom_change']/df_day_combined['SUNLIGHT']
+df_day_combined['hm_nom_change'] = df_day_combined['HUMIDITY+1'] - df_day_combined['HUMIDITY']
+df_day_combined['hm_perc_change'] = df_day_combined['hm_nom_change']/df_day_combined['HUMIDITY']
+df_day_combined['tf_nom_change'] = df_day_combined['TRANSPORT_FEES+1'] - df_day_combined['TRANSPORT_FEES']
+df_day_combined['tf_perc_change'] = df_day_combined['tf_nom_change']/df_day_combined['TRANSPORT_FEES']
+df_day_combined['et_nom_change'] = df_day_combined['EXPORT_TARIFF+1'] - df_day_combined['EXPORT_TARIFF']
+df_day_combined['et_perc_change'] = df_day_combined['et_nom_change']/df_day_combined['EXPORT_TARIFF']
+df_day_combined['it_nom_change'] = df_day_combined['IMPORT_TARIFF+1'] - df_day_combined['IMPORT_TARIFF']
+df_day_combined['it_perc_change'] = df_day_combined['it_nom_change']/df_day_combined['IMPORT_TARIFF']
+df_day_combined['hd_out'] = np.where(df_day_combined['HUMIDITY']> 80, df_day_combined['HUMIDITY'] - 80, 
+                                           np.where(df_day_combined['HUMIDITY'] < 60, 60 - df_day_combined['HUMIDITY'], 0))
+df_day_combined['total_iter'] = df_day_combined['timestamp']/100 + 1
+df_day_combined['sl_more_than_7'] = df_day_combined['tot_good_sl']/df_day_combined['total_iter']
+df_day_combined['sl_more_than_7_flag'] = np.where(df_day_combined['tot_good_sl']/df_day_combined['total_iter'] > 7/12,1,0)
+df_day_combined['sl_more_than_7_flag2'] = np.where(df_day_combined['tot_good_sl']/df_day_combined['total_iter'] > 7/24,1,0)
+df_day_combined['sl_more_2556_flag'] = np.where(df_day_combined['SUNLIGHT'] >= 2556,1,0)
+df_day_combined['sl_more_flag'] = np.where(df_day_combined['SUNLIGHT'] >= 2557,1,0)
+df_day_combined['sl_prod_reduction'] = np.where((2557 - df_day_combined['SUNLIGHT'])/60.833 * 0.04 > 0, (2557 - df_day_combined['SUNLIGHT'])/60.833 * 0.04, 0)
+df_day_combined['hm_prod_reduction'] = df_day_combined['hd_out']/5 * 0.02
+df_day_combined['total_prod_reduction_add'] = 1-df_day_combined['sl_prod_reduction']-df_day_combined['hm_prod_reduction']
+df_day_combined['total_prod_reduction_multi'] = (1-df_day_combined['sl_prod_reduction'])*(1-df_day_combined['hm_prod_reduction'])
+
+
+for i in range(400,601):
+    df_day_combined[f'sl_more_2{i}_flag'] = np.where(df_day_combined['SUNLIGHT'] >= 2000+i,1,0)
+
+cor = df_day_combined.corr()
+
+
+Y = df_day_combined['or_perc_change']
+X = df_day_combined[[
+    'ORCHIDS'
+    ,'SUNLIGHT'
+    ,'HUMIDITY'
+    ,'TRANSPORT_FEES'
+    ,'EXPORT_TARIFF'
+    ,'IMPORT_TARIFF'
+    ,'sl_nom_change'
+    ,'hm_nom_change'
+    ,'tf_nom_change'
+    ,'et_nom_change'
+    ,'it_nom_change'
+    ,'sl_perc_change'
+    ,'hm_perc_change'
+    ,'tf_perc_change'
+    ,'et_perc_change'
+    ,'it_perc_change'
+    ,'hd_out'
+    ,'sl_more_than_7'
+    ,'good_sl_flag'
+    ,'tot_good_sl'
+    ,'sl_more_than_7_flag'
+    ,'sl_more_than_7_flag2'
+    ,'sl_more_2556_flag'
+    ,'sl_more_flag'
+    ,'sl_prod_reduction'
+    ,'hm_prod_reduction'
+    ,'total_prod_reduction_add'
+    ,'total_prod_reduction_multi'
+
+    ]]
+X2 = sm.add_constant(X)
+est = sm.OLS(Y, X2)
+est2 = est.fit()
+print(est2.summary())
+print(f"coefficient of determination: {est2.rsquared}")
+print(f"adjusted coefficient of determination: {est2.rsquared_adj}")
+print(f"regression coefficients: {est2.params}")
+
+Y = df_day_combined['or_perc_change']
+X = df_day_combined[[
+    'hm_nom_change'
+    ,'hm_perc_change'
+    ]]
+X2 = sm.add_constant(X)
+est = sm.OLS(Y, X2)
+est2 = est.fit()
+print(est2.summary())
+print(f"coefficient of determination: {est2.rsquared}")
+print(f"adjusted coefficient of determination: {est2.rsquared_adj}")
+print(f"regression coefficients: {est2.params}")
+
+X = df_day_combined[['hm_nom_change','hm_perc_change']]
+X = sm.add_constant(X)
+df_day_combined['predict'] = est2.predict(X)
+
+df_day_combined[['or_perc_change','predict']]*100
+
 
 windows = pd.concat([df_day_0[['SUNLIGHT','HUMIDITY']].shift(n) for n in range(5)], axis=1)
 windows
@@ -182,7 +320,9 @@ X2 = sm.add_constant(X)
 est = sm.OLS(Y, X2)
 est2 = est.fit()
 print(est2.summary())
-
+print(f"coefficient of determination: {results.rsquared}")
+print(f"adjusted coefficient of determination: {results.rsquared_adj}")
+print(f"regression coefficients: {results.params}")
 from sklearn.linear_model import RidgeCV
 
 model = RidgeCV()

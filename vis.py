@@ -152,7 +152,7 @@ class Trader:
         #COMMENT BELOW WHEN SUBMITTING
         #product_keys = [#'AMETHYSTS','STARFRUIT','ORCHIDS',
         #'CHOCOLATE','STRAWBERRIES','ROSES','GIFT_BASKET']
-        product_keys = ['ROSES']
+        product_keys = ['AMETHYSTS','STARFRUIT','CHOCOLATE','STRAWBERRIES','ROSES','GIFT_BASKET']
         
         #Only method required. It takes all buy and sell orders for all symbols as an input,
         #and outputs a list of orders to be sent
@@ -168,9 +168,9 @@ class Trader:
         logger.print(f";market_trades;{state.market_trades.get(want_to_see_product,"")}")
         '''
 
-        '''
+        
         result['AMETHYSTS'] = self.compute_orders_amethysts(state, acc_bid = 10000, acc_ask = 10000, POSITION_LIMIT = mydata['position_limit'])        
-
+        
         buy_orders = list(state.order_depths['STARFRUIT'].buy_orders.items())
         best_buy_pr, buy_vol = buy_orders[0]
 
@@ -190,7 +190,7 @@ class Trader:
             result['STARFRUIT'] = self.compute_orders_starfruit(state, acc_bid = int(round(nxt_SF_price-1,0)), acc_ask = math.floor(nxt_SF_price+1), POSITION_LIMIT = mydata['position_limit'])
             
 
-
+        '''
         if state.position.get("ORCHIDS",0) > 0:
             mydata['running_buy_price'] += 0.1
 
