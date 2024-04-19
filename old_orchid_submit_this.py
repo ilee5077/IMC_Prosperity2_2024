@@ -135,6 +135,9 @@ class Trader:
             mydata['position_limit'] = {'AMETHYSTS' : 20, 'STARFRUIT' : 20, 'ORCHIDS' : 100, 'CHOCOLATE' : 250, 'STRAWBERRIES' : 350, 'ROSES' : 60, "GIFT_BASKET" : 60}
             mydata['starfruit_cache'] = []
             mydata['starfruit_dim'] = 5
+            mydata['tot_good_sl'] = 0
+            mydata['cont_buy_basket_unfill'] = 0
+            mydata['cont_sell_basket_unfill'] = 0
             mydata['last_position'] = {'AMETHYSTS' : 0, 'STARFRUIT' : 0, 'ORCHIDS' : 0}
             mydata['cpnl'] = {'AMETHYSTS' : 0, 'STARFRUIT' : 0, 'ORCHIDS' : 0}
             mydata['volume_traded'] = {'AMETHYSTS' : 0, 'STARFRUIT' : 0, 'ORCHIDS' : 0}
@@ -152,23 +155,10 @@ class Trader:
         #COMMENT BELOW WHEN SUBMITTING
         #product_keys = [#'AMETHYSTS','STARFRUIT','ORCHIDS',
         #'CHOCOLATE','STRAWBERRIES','ROSES','GIFT_BASKET']
-        product_keys = ['AMETHYSTS','STARFRUIT','CHOCOLATE','STRAWBERRIES','ROSES','GIFT_BASKET']
+        #product_keys = ['CHOCOLATE','STRAWBERRIES','ROSES','GIFT_BASKET']
         
-        #Only method required. It takes all buy and sell orders for all symbols as an input,
-        #and outputs a list of orders to be sent
-        '''
-        want_to_see_product = 'ORCHIDS'
-        logger.print(f";timestamp;{state.timestamp}")
-        #logger.print("LISTING")
-        #logger.print(state.listings)
-        logger.print(f";buyorders;{list(state.order_depths[want_to_see_product].buy_orders.items())};sellorders;{list(state.order_depths[want_to_see_product].sell_orders.items())};own_trades;{state.own_trades.get(want_to_see_product,"")};")
-        logger.print(f";Baskprice;{state.observations.conversionObservations[want_to_see_product].askPrice};Bbidprice;{state.observations.conversionObservations[want_to_see_product].bidPrice};exportT;{state.observations.conversionObservations[want_to_see_product].exportTariff};importT;{state.observations.conversionObservations[want_to_see_product].importTariff};transportF;{state.observations.conversionObservations[want_to_see_product].transportFees};")
-        logger.print(f";position;{state.position.get(want_to_see_product,"")}")
-        logger.print(f";market_trades;{state.own_trades.get(want_to_see_product,"")}")
-        logger.print(f";market_trades;{state.market_trades.get(want_to_see_product,"")}")
-        '''
 
-        
+          
         result['AMETHYSTS'] = self.compute_orders_amethysts(state, acc_bid = 10000, acc_ask = 10000, POSITION_LIMIT = mydata['position_limit'])        
         
         buy_orders = list(state.order_depths['STARFRUIT'].buy_orders.items())
@@ -190,7 +180,6 @@ class Trader:
             result['STARFRUIT'] = self.compute_orders_starfruit(state, acc_bid = int(round(nxt_SF_price-1,0)), acc_ask = math.floor(nxt_SF_price+1), POSITION_LIMIT = mydata['position_limit'])
             
 
-        '''
         if state.position.get("ORCHIDS",0) > 0:
             mydata['running_buy_price'] += 0.1
 
@@ -215,24 +204,13 @@ class Trader:
 
         nxt_OC_price = self.next_orchid_price(state)
         result['ORCHIDS'], conversions = self.compute_orders_orchids(state, nxt_OC_price = nxt_OC_price, acc_bid = nxt_OC_price - 1, acc_ask = nxt_OC_price + 1, POSITION_LIMIT = mydata['position_limit'], avg_running_price = average_price)
-        '''
-
-
+        
         orders = self.compute_orders_basket(state.order_depths, state = state, POSITION_LIMIT = mydata['position_limit'], mydata = mydata)
         result['GIFT_BASKET'] += orders['GIFT_BASKET'] 
         result['STRAWBERRIES'] += orders['STRAWBERRIES']
         result['CHOCOLATE'] += orders['CHOCOLATE']
         result['ROSES'] += orders['ROSES']
 
-        conversions = None
-        if conversions is not None:
-            mydata['running_buy_price'] = 0
-            mydata['running_sell_price'] = 0
-            mydata['running_buy_vol'] = 0
-            mydata['running_sell_vol'] = 0
-
-        if state.position.get('ORCHIDS',0) > 0:
-            mydata['cpnl']['ORCHIDS'] -= state.position.get('ORCHIDS',0) * 0.1
         
         # String value holding Trader state data required. 
         # It will be delivered as TradingState.traderData on next execution.
@@ -242,7 +220,7 @@ class Trader:
 
 
 
-        result = {k: v for k, v in result.items() if k in (product_keys)}
+        #result = {k: v for k, v in result.items() if k in (product_keys)}
 
         logger.print(f";order;{result}")
 
@@ -650,7 +628,7 @@ class Trader:
                 buy_cpos_update += num
 
         return orders, conversions
-        
+
     def compute_orders_basket(self, order_depth, state: TradingState, POSITION_LIMIT, mydata):
 
         orders = {'STRAWBERRIES' : [], 'CHOCOLATE': [], 'ROSES' : [], 'GIFT_BASKET' : []}
@@ -679,10 +657,29 @@ class Trader:
                     break
         
         # mean:379.4904833333333;median381.0;std76.42310842343252
+        res_buy_gb = mid_price['GIFT_BASKET'] - (mid_price['STRAWBERRIES']*6 + mid_price['CHOCOLATE']*4 + mid_price['ROSES']) - 379.5
+        res_sell_gb = mid_price['GIFT_BASKET'] - (mid_price['STRAWBERRIES']*6 + mid_price['CHOCOLATE']*4 + mid_price['ROSES']) - 379.5
+        
         res_buy = mid_price['GIFT_BASKET'] - mid_price['STRAWBERRIES']*6 - mid_price['CHOCOLATE']*4 - mid_price['ROSES'] - 379.5
         res_sell = mid_price['GIFT_BASKET'] - mid_price['STRAWBERRIES']*6 - mid_price['CHOCOLATE']*4 - mid_price['ROSES'] - 379.5
 
-        trade_at = 76.4*0.5
+        trade_at_gb = 76.4*0.5
+        
+        res_buy_cc = mid_price['CHOCOLATE'] - ((mid_price['GIFT_BASKET'] - 6*mid_price['STRAWBERRIES'] - mid_price['ROSES'])/4  )+ 94.873
+        res_sell_cc = mid_price['CHOCOLATE'] - ((mid_price['GIFT_BASKET'] - 6*mid_price['STRAWBERRIES'] - mid_price['ROSES'])/4 )+ 94.873
+        
+        trade_at_cc = 19.106*2.0
+
+        res_buy_sb = mid_price['STRAWBERRIES'] - ((mid_price['GIFT_BASKET'] - mid_price['CHOCOLATE']*4 - mid_price['ROSES'])/6  )+ 63.248
+        res_sell_sb = mid_price['STRAWBERRIES'] - ((mid_price['GIFT_BASKET'] - mid_price['CHOCOLATE']*4 - mid_price['ROSES'])/6 )+ 63.248
+        
+        trade_at_sb = 12.737 * 1.5
+
+        res_buy_rs = mid_price['ROSES'] - ((mid_price['GIFT_BASKET'] - mid_price['CHOCOLATE']*4 - 6*mid_price['STRAWBERRIES'])  )+ 379.5
+        res_sell_rs = mid_price['ROSES'] - ((mid_price['GIFT_BASKET'] - mid_price['CHOCOLATE']*4 - 6*mid_price['STRAWBERRIES'])) + 379.5
+        
+        trade_at_rs = 76.4*1.5
+        
         close_at = 76.4*(-1000)
         
         gb_pos = state.position.get('GIFT_BASKET',0)
@@ -701,8 +698,7 @@ class Trader:
             mydata['cont_sell_basket_unfill'] = 0
 
         do_bask = 0
-
-        if res_sell > trade_at:
+        if res_sell_gb > trade_at_gb:
             vol = state.position.get('GIFT_BASKET',0) + POSITION_LIMIT['GIFT_BASKET']
             mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
@@ -713,7 +709,7 @@ class Trader:
                 mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
-        elif res_buy < -trade_at:
+        elif res_buy_gb < -trade_at_gb:
             vol = POSITION_LIMIT['GIFT_BASKET'] - state.position.get('GIFT_BASKET',0)
             mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
@@ -726,7 +722,7 @@ class Trader:
 
         
 
-        if res_sell > 76.4*0.7:
+        if res_sell_sb > trade_at_sb:
             vol = state.position.get('STRAWBERRIES',0) + POSITION_LIMIT['STRAWBERRIES']
             mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
@@ -737,7 +733,7 @@ class Trader:
                 mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
-        elif res_buy < -76.4*0.7:
+        elif res_buy_sb < -trade_at_sb:
             vol = POSITION_LIMIT['STRAWBERRIES'] - state.position.get('STRAWBERRIES',0)
             mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
@@ -748,7 +744,7 @@ class Trader:
                 mydata['cont_buy_basket_unfill'] += 2
                 gb_pos += vol
 
-        if res_sell > 76.4*0.6:
+        if res_sell_cc > trade_at_cc:
             vol = state.position.get('CHOCOLATE',0) + POSITION_LIMIT['CHOCOLATE']
             mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
@@ -759,7 +755,7 @@ class Trader:
                 mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
-        elif res_buy < -76.4*0.6:
+        elif res_buy_cc < -trade_at_cc:
             vol = POSITION_LIMIT['CHOCOLATE'] - state.position.get('CHOCOLATE',0)
             mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
@@ -771,7 +767,7 @@ class Trader:
                 gb_pos += vol
 
 
-        if res_sell > 76.4*0.3:
+        if res_sell_rs > trade_at_rs:
             vol = state.position.get('ROSES',0) + POSITION_LIMIT['ROSES']
             mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
@@ -782,7 +778,7 @@ class Trader:
                 mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
-        elif res_buy < -76.4*0.3:
+        elif res_buy_rs < -trade_at_rs:
             vol = POSITION_LIMIT['ROSES'] - state.position.get('ROSES',0)
             mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
