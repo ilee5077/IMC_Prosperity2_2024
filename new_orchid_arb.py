@@ -132,22 +132,10 @@ class Trader:
 
         if state.traderData == '':
             mydata = {}
-            mydata['position_limit'] = {'AMETHYSTS' : 20, 'STARFRUIT' : 20, 'ORCHIDS' : 100, 'CHOCOLATE' : 250, 'STRAWBERRIES' : 350, 'ROSES' : 60, "GIFT_BASKET" : 60}
+            mydata['position_limit'] = {'AMETHYSTS' : 20, 'STARFRUIT' : 20, 'ORCHIDS' : 100, 'CHOCOLATE' : 250, 'STRAWBERRIES' : 350, 'ROSES' : 60, "GIFT_BASKET" : 60, "COCONUT":300, "COCONUT_COUPON":600}
             mydata['starfruit_cache'] = []
             mydata['starfruit_dim'] = 5
             mydata['tot_good_sl'] = 0
-            mydata['cont_buy_basket_unfill'] = 0
-            mydata['cont_sell_basket_unfill'] = 0
-            mydata['last_position'] = {'AMETHYSTS' : 0, 'STARFRUIT' : 0, 'ORCHIDS' : 0}
-            mydata['cpnl'] = {'AMETHYSTS' : 0, 'STARFRUIT' : 0, 'ORCHIDS' : 0}
-            mydata['volume_traded'] = {'AMETHYSTS' : 0, 'STARFRUIT' : 0, 'ORCHIDS' : 0}
-            mydata['running_buy_price'] = 0
-            mydata['running_sell_price'] = 0
-            mydata['running_buy_vol'] = 0
-            mydata['running_sell_vol'] = 0
-            mydata['OC_gap_average'] = 0
-            mydata['cont_buy_basket_unfill'] = 0
-            mydata['cont_sell_basket_unfill'] = 0
         else:
             mydata = jsonpickle.decode(state.traderData)
 
@@ -156,9 +144,9 @@ class Trader:
         #product_keys = [#'AMETHYSTS','STARFRUIT','ORCHIDS',
         #'CHOCOLATE','STRAWBERRIES','ROSES','GIFT_BASKET']
         #product_keys = ['CHOCOLATE','STRAWBERRIES','ROSES','GIFT_BASKET']
+        product_keys = ['ORCHIDS']
         
 
-          
         result['AMETHYSTS'] = self.compute_orders_amethysts(state, acc_bid = 10000, acc_ask = 10000, POSITION_LIMIT = mydata['position_limit'])        
         
         buy_orders = list(state.order_depths['STARFRUIT'].buy_orders.items())
@@ -178,33 +166,11 @@ class Trader:
             #logger.print(f"next price SF: {nxt_SF_price}, next price LR: {round(gradient * 6 + intercept,0)},history: {mydata['starfruit_cache']}, gradient: {gradient}")            
             # now we know the next SF price is going to be - so we can start trade!
             result['STARFRUIT'] = self.compute_orders_starfruit(state, acc_bid = int(round(nxt_SF_price-1,0)), acc_ask = math.floor(nxt_SF_price+1), POSITION_LIMIT = mydata['position_limit'])
-            
-
-        if state.position.get("ORCHIDS",0) > 0:
-            mydata['running_buy_price'] += 0.1
-
-        for product in state.own_trades.keys():
-            if product == 'ORCHIDS':
-                for trade in state.own_trades['ORCHIDS']:
-                    if trade.timestamp != state.timestamp-100:
-                        continue
-                    
-                    if trade.buyer == "SUBMISSION": 
-                        mydata['running_buy_price'] = (mydata['running_buy_price'] * mydata['running_buy_vol'] + trade.quantity * trade.price)/(mydata['running_buy_vol'] + trade.quantity)
-                        mydata['running_buy_vol'] += trade.quantity
-                    else:
-                        mydata['running_sell_price'] = (mydata['running_sell_price'] * mydata['running_sell_vol'] + trade.quantity * trade.price)/(mydata['running_sell_vol'] + trade.quantity)
-                        mydata['running_sell_vol'] += trade.quantity
         
 
-        if (mydata['running_buy_vol'] - mydata['running_sell_vol']) != 0:
-            average_price = round((mydata['running_buy_vol'] * mydata['running_buy_price'] - mydata['running_sell_vol'] * mydata['running_sell_price']) / (mydata['running_buy_vol'] - mydata['running_sell_vol']),1)
-        else:
-            average_price = 0
-
-        nxt_OC_price = self.next_orchid_price(state)
-        result['ORCHIDS'], conversions = self.compute_orders_orchids(state, nxt_OC_price = nxt_OC_price, acc_bid = nxt_OC_price - 1, acc_ask = nxt_OC_price + 1, POSITION_LIMIT = mydata['position_limit'], avg_running_price = average_price)
         
+        result['ORCHIDS'], conversions = self.compute_orders_orchids_new(state, mydata)
+
         orders = self.compute_orders_basket(state.order_depths, state = state, POSITION_LIMIT = mydata['position_limit'], mydata = mydata)
         result['GIFT_BASKET'] += orders['GIFT_BASKET'] 
         result['STRAWBERRIES'] += orders['STRAWBERRIES']
@@ -220,7 +186,7 @@ class Trader:
 
 
 
-        #result = {k: v for k, v in result.items() if k in (product_keys)}
+        result = {k: v for k, v in result.items() if k in (product_keys)}
 
         logger.print(f";order;{result}")
 
@@ -443,192 +409,6 @@ class Trader:
         #logger.print(f"arbi orders {product}:{orders}")
         return orders
 
-    def next_orchid_price(self, state: TradingState):
-        # end of timestamp dont trade!
-        product = 'ORCHIDS'
-        intercept = -0.0439889100189248
-        #'ORCHIDS'    'SUNLIGHT'     'HUMIDITY'     'diffSUNLIGHT>2500'     'humdiff'
-        coef = [0.999623941,    -0.0000250973316,    0.0067920161,    0.0000636415177,    -0.0110500552]
-
-        observations = state.observations.conversionObservations[product]
-
-        buy_orders = list(state.order_depths[product].buy_orders.items())
-        best_buy_pr, buy_vol = buy_orders[0]
-
-        sell_orders = list(state.order_depths[product].sell_orders.items())
-        best_sell_pr, sell_vol = sell_orders[0]
-
-
-        sunlight = observations.sunlight
-        humidity = observations.humidity
-        
-        sundiff = max(sunlight-2500,0)
-        humdiff = max(max(humidity-80,0),max(60-humidity,0))
-
-        sum = 0
-        sumvol = 0
-        if len(buy_orders) > 1:
-            for bid,bid_vol in buy_orders[:-1]:
-                sum += bid*bid_vol
-                sumvol += bid_vol
-        else:
-            bid,bid_vol = buy_orders[0]
-            sum += bid*bid_vol
-            sumvol += bid_vol
-        if len(sell_orders) > 1:    
-            for ask,ask_vol in sell_orders[:-1]:
-                sum += ask*-ask_vol
-                sumvol += -ask_vol
-        else:
-            ask,ask_vol = sell_orders[0]
-            sum += ask*ask_vol
-            sumvol += ask_vol
-
-        mprice = sum/sumvol
-
-        observed_values = []
-
-        observed_values.append(mprice)
-        observed_values.append(sunlight)
-        observed_values.append(humidity)
-        observed_values.append(sundiff)
-        observed_values.append(humdiff)
-        
-        nxt_price = int(round(intercept + math.sumprod(coef,observed_values),0))
-        logger.print(f";OC mprice;{(best_buy_pr+best_sell_pr)/2};wmprice;{mprice};nextprice;{nxt_price}")
-        return nxt_price
-    
-    def compute_arb_conversion_order(self, state: TradingState, avg_running_price, acc_bid, acc_ask):
-        product = 'ORCHIDS'
-        observations = state.observations.conversionObservations[product]
-        conversions = None
-        #price we are paying to buy
-        real_ask_price = observations.askPrice + observations.importTariff + observations.transportFees
-        
-        #price we are getting to sell
-        real_bid_price = observations.bidPrice - observations.exportTariff - observations.transportFees
-        
-        if state.position.get(product,0) > 0:
-            if (real_bid_price >= avg_running_price) and (real_bid_price > acc_ask):
-                conversions = -state.position[product]
-        
-        if state.position.get(product,0) < 0:
-            if (real_ask_price < avg_running_price) and (real_ask_price < acc_bid):
-                conversions = -state.position[product]
-        logger.print(f";real_bid;{real_bid_price};bid_profit;{- observations.exportTariff - observations.transportFees};real_ask;{real_ask_price};ask_profit;{observations.importTariff + observations.transportFees};avg_running_price;{avg_running_price};conversions;{conversions}")
-        return conversions, real_ask_price, real_bid_price
-
-    def compute_orders_orchids(self, state: TradingState, nxt_OC_price, acc_bid, acc_ask, POSITION_LIMIT, avg_running_price):
-        product = 'ORCHIDS'
-        
-        #if state.position[product] != 0:
-        #    conversion = self.compute_arb_conversion_order()
-        conversions, real_ask_price, real_bid_price = self.compute_arb_conversion_order(state, avg_running_price = avg_running_price, acc_bid =acc_bid, acc_ask=acc_ask)
-
-        orders: list[Order] = []
-
-        buy_orders = list(state.order_depths[product].buy_orders.items())
-        best_buy_pr, buy_vol = buy_orders[0]
-
-        sell_orders = list(state.order_depths[product].sell_orders.items())
-        best_sell_pr, sell_vol = sell_orders[0]
-
-        pos_limt = POSITION_LIMIT[product]
-
-        cpos= 0
-        if product in state.position.keys() and conversions is None:
-            cpos = state.position[product]
-
-        mx_with_buy = -1
-        buy_cpos_update = cpos
-        for ask, vol in sell_orders:
-            # MATCHING ASK ORDERS
-            # sell for less than the price we willing to buy OR
-            # sell for same as we want to buy and our position is short
-            if ((ask < acc_bid) or ((cpos<0) and (ask == acc_bid)) or (real_bid_price > ask)) and buy_cpos_update < pos_limt:
-            #if ((ask < acc_bid) or ((cpos<0) and (ask == acc_bid)) or (real_bid_price > ask + 1)) and buy_cpos_update < pos_limt:
-                mx_with_buy = max(mx_with_buy, ask) # buy price
-                order_for = min(-vol, pos_limt - cpos) # how many do we buy for
-                buy_cpos_update += order_for
-                assert(order_for >= 0)
-                orders.append(Order(product, ask, order_for))
-
-        cpos= 0
-        if product in state.position.keys() and conversions is None:
-            cpos = state.position[product]
-        sell_cpos_update = cpos
-        # short positioning
-        for bid, vol in buy_orders:
-            # MATCHING BUY ORDERS
-            # someone is willing to buy more than what we ask
-            # we are long and someone buying at price we think
-            if ((bid > acc_ask) or ((cpos>0) and (bid == acc_ask)) or (real_ask_price < bid))  and sell_cpos_update > -pos_limt:
-            #if ((bid > acc_ask) or ((cpos>0) and (bid == acc_ask)) or (real_ask_price < bid - 1))  and sell_cpos_update > -pos_limt:
-                order_for = max(-vol, -pos_limt-sell_cpos_update)
-                # order_for is a negative number denoting how much we will sell
-                sell_cpos_update += order_for
-                assert(order_for <= 0)
-                orders.append(Order(product, bid, order_for))
-        
-        sum = 0
-        sumvol = 0
-        if len(buy_orders) > 1:
-            for bid,bid_vol in buy_orders[:-1]:
-                sum += bid*bid_vol
-                sumvol += bid_vol
-        else:
-            bid,bid_vol = buy_orders[0]
-            sum += bid*bid_vol
-            sumvol += bid_vol
-        if len(sell_orders) > 1:    
-            for ask,ask_vol in sell_orders[:-1]:
-                sum += ask*-ask_vol
-                sumvol += -ask_vol
-        else:
-            ask,ask_vol = sell_orders[0]
-            sum += ask*ask_vol
-            sumvol += ask_vol
-
-        mprice = int(round(sum/sumvol,0))
-
-
-        observationB = state.observations.conversionObservations[product]
-        undercut_sell = mprice + 1
-        undercut_buy = mprice - 1    
-
-
-        
-        # buy is profitable
-        if real_ask_price < best_sell_pr:
-            if sell_cpos_update > -pos_limt:
-                num = max(-200, -pos_limt-sell_cpos_update)
-
-                if nxt_OC_price > mprice:
-                    orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.7)))
-                    orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.3)))
-                else:
-                    #conservative less tradesround(
-                    orders.append(Order(product, int(round(max(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.3)))
-                    #aggressive more tradesround(
-                    orders.append(Order(product, int(round(min(real_ask_price + 1, best_sell_pr - 1),0)), int(num*0.7)))
-                
-                sell_cpos_update += num
-        
-        # sell is profitable
-        if real_bid_price > best_buy_pr:
-            if buy_cpos_update < pos_limt:
-                num = min(200, pos_limt - buy_cpos_update)
-                
-                if nxt_OC_price > mprice:
-                    orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-                    orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-                else:
-                    orders.append(Order(product, int(round(min(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.7)))
-                    orders.append(Order(product, int(round(max(real_bid_price - 1, best_buy_pr + 1),0)), int(num*0.3)))
-                buy_cpos_update += num
-
-        return orders, conversions
-
     def compute_orders_basket(self, order_depth, state: TradingState, POSITION_LIMIT, mydata):
 
         orders = {'STRAWBERRIES' : [], 'CHOCOLATE': [], 'ROSES' : [], 'GIFT_BASKET' : []}
@@ -692,104 +472,140 @@ class Trader:
         basket_buy_sig = 0
         basket_sell_sig = 0
 
-        if state.position.get('GIFT_BASKET',0) == POSITION_LIMIT['GIFT_BASKET']:
-            mydata['cont_buy_basket_unfill'] = 0
-        if state.position.get('GIFT_BASKET',0) == -POSITION_LIMIT['GIFT_BASKET']:
-            mydata['cont_sell_basket_unfill'] = 0
+
 
         do_bask = 0
         if res_sell_gb > trade_at_gb:
             vol = state.position.get('GIFT_BASKET',0) + POSITION_LIMIT['GIFT_BASKET']
-            mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_sell_sig = 1
                 orders['GIFT_BASKET'].append(Order('GIFT_BASKET', worst_buy['GIFT_BASKET'], -vol)) 
-                mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
         elif res_buy_gb < -trade_at_gb:
             vol = POSITION_LIMIT['GIFT_BASKET'] - state.position.get('GIFT_BASKET',0)
-            mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_buy_sig = 1
                 orders['GIFT_BASKET'].append(Order('GIFT_BASKET', worst_sell['GIFT_BASKET'], vol))
-                mydata['cont_buy_basket_unfill'] += 2
                 gb_pos += vol
 
         
 
         if res_sell_sb > trade_at_sb:
             vol = state.position.get('STRAWBERRIES',0) + POSITION_LIMIT['STRAWBERRIES']
-            mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_sell_sig = 1
                 orders['STRAWBERRIES'].append(Order('STRAWBERRIES', worst_buy['STRAWBERRIES'], -vol)) 
-                mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
         elif res_buy_sb < -trade_at_sb:
             vol = POSITION_LIMIT['STRAWBERRIES'] - state.position.get('STRAWBERRIES',0)
-            mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_buy_sig = 1
                 orders['STRAWBERRIES'].append(Order('STRAWBERRIES', worst_sell['STRAWBERRIES'], vol))
-                mydata['cont_buy_basket_unfill'] += 2
                 gb_pos += vol
 
         if res_sell_cc > trade_at_cc:
             vol = state.position.get('CHOCOLATE',0) + POSITION_LIMIT['CHOCOLATE']
-            mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_sell_sig = 1
                 orders['CHOCOLATE'].append(Order('CHOCOLATE', worst_buy['CHOCOLATE'], -vol)) 
-                mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
         elif res_buy_cc < -trade_at_cc:
             vol = POSITION_LIMIT['CHOCOLATE'] - state.position.get('CHOCOLATE',0)
-            mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_buy_sig = 1
                 orders['CHOCOLATE'].append(Order('CHOCOLATE', worst_sell['CHOCOLATE'], vol))
-                mydata['cont_buy_basket_unfill'] += 2
                 gb_pos += vol
-
 
         if res_sell_rs > trade_at_rs:
             vol = state.position.get('ROSES',0) + POSITION_LIMIT['ROSES']
-            mydata['cont_buy_basket_unfill'] = 0 # no need to buy rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_sell_sig = 1
                 orders['ROSES'].append(Order('ROSES', worst_buy['ROSES'], -vol)) 
-                mydata['cont_sell_basket_unfill'] += 2
                 gb_neg -= vol
                 #uku_pos += vol
         elif res_buy_rs < -trade_at_rs:
             vol = POSITION_LIMIT['ROSES'] - state.position.get('ROSES',0)
-            mydata['cont_sell_basket_unfill'] = 0 # no need to sell rn
             assert(vol >= 0)
             if vol > 0:
                 do_bask = 1
                 basket_buy_sig = 1
                 orders['ROSES'].append(Order('ROSES', worst_sell['ROSES'], vol))
-                mydata['cont_buy_basket_unfill'] += 2
                 gb_pos += vol
 
         
 
 
         return orders
+    
+    def compute_orders_orchids_new(self, state:TradingState, mydata):
+        p = 'ORCHIDS'
+
+        orders: list[Order] = []
+
+        buy_orders = list(state.order_depths[p].buy_orders.items())
+        best_buy_pr, buy_vol = buy_orders[0]
+
+        sell_orders = list(state.order_depths[p].sell_orders.items())
+        best_sell_pr, sell_vol = sell_orders[0]
+
+        mid_price = (best_buy_pr + best_sell_pr)/2
+        pos_limt = mydata['position_limit'][p]
+       
+
+        buy_from_south = state.observations.conversionObservations[p].askPrice + state.observations.conversionObservations[p].importTariff + state.observations.conversionObservations[p].transportFees
+        
+        sell_to_south = state.observations.conversionObservations[p].bidPrice - state.observations.conversionObservations[p].exportTariff - state.observations.conversionObservations[p].transportFees
+
+        sell_cpos = state.position.get(p,0)
+        # I sell and buy from south
+        if (buy_from_south < best_buy_pr) and (sell_cpos > -pos_limt):
+            for bid, vol in buy_orders:
+                if buy_from_south < bid:
+                    order_for = min(pos_limt + sell_cpos,vol)
+                    orders.append(Order(p,bid,-order_for))
+                    sell_cpos += -order_for
+
+        buy_cpos = state.position.get(p,0)
+        # I buy and sell to south
+        if (sell_to_south > best_sell_pr) and (buy_cpos < pos_limt):
+            for ask, vol in sell_orders:
+                if sell_to_south > ask:
+                    order_for = min(pos_limt - buy_cpos,-vol)
+                    orders.append(Order(p,ask,order_for))
+                    buy_cpos += order_for
+
+        # MM
+        # I sell and buy from south
+        if (buy_from_south < mid_price) and (sell_cpos > -pos_limt):
+            order_for = pos_limt + sell_cpos
+            price = min(int(math.ceil(buy_from_south)), int(math.floor(mid_price)))
+            orders.append(Order(p,price,-order_for))
+        # I buy and sell to south
+        if (sell_to_south > mid_price) and (buy_cpos < pos_limt):
+            order_for = pos_limt - buy_cpos
+            price = max(int(math.floor(sell_to_south)), int(math.ceil(mid_price)))
+            orders.append(Order(p,price,order_for))
+
+        logger.print(f"buy_from_south:{buy_from_south},sell_to_south:{sell_to_south},midprice:{mid_price},bestbuy:{best_buy_pr},bestsell:{best_sell_pr}")
+
+        conversions = -state.position.get(p,0)
+        
+        return orders, conversions
+

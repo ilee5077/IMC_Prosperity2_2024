@@ -1,0 +1,67 @@
+lmkae
+
+def orchidArbitrage(self, product, state):
+        conversion = state.observations.conversionObservations[product]
+        orders = []
+        conv = 0
+
+        # cover short sell
+        buyP = conversion.askPrice + conversion.transportFees + conversion.importTariff
+        # sell bought
+        sellR = conversion.bidPrice - conversion.transportFees - conversion.exportTariff
+
+        logger.print(buyP, sellR)
+        logger.print(self.orchid_ma_differential)
+
+        order_depths = state.order_depths.get(product, 0)
+        osell = collections.OrderedDict(sorted(order_depths.sell_orders.items()))
+        obuy = collections.OrderedDict(sorted(order_depths.buy_orders.items(), reverse=True))
+
+        pos = 0
+
+        # fill all sell orders below sellR
+        sf = 0
+        if self.orchid_ma_differential >= -2:
+            for sell, vol in osell.items():
+                if sell < sellR and pos < 100:
+                    order_for = min(-vol, 100-pos)
+                    pos += order_for
+                    orders.append(Order(product, sell, order_for))
+                    sf += 1
+
+            sprice = list(osell.keys())[0]
+
+            if pos < 100:
+                orders.append(Order(product, min(sprice-2, int(sellR-1)), 100-pos))
+
+        # fill all buy orders above buyP
+        bf = 0
+
+        if self.orchid_ma_differential <= 2:
+            for buy, vol in obuy.items():
+                if buy > buyP and pos > -100:
+                    order_for = max(-vol, -100-pos)
+                    pos += order_for
+                    orders.append(Order(product, buy, order_for))
+                    bf += 1
+
+            bprice = list(obuy.keys())[0]
+
+            if pos > -100:
+                amt = 100+pos
+                orders.append(Order(product, max(bprice+2, int(buyP+1)), -amt))
+            
+        self.curOrders[product] = orders
+
+        conv = -state.position.get(product, 0)
+
+        return conv
+orchid ma differential is set here 
+
+def updateOrchidCache(self, state):
+        buy = state.observations.conversionObservations['ORCHIDS'].bidPrice
+        sell = state.observations.conversionObservations['ORCHIDS'].askPrice
+        mid = (buy + sell) / 2
+        if len(self.orchids_cache) >= 1:
+            self.orchid_ma_differential = mid - self.orchids_cache[-1]
+        self.orchids_cache.append(mid)

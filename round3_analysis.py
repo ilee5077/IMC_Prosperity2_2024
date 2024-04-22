@@ -28,9 +28,9 @@ day_comb_gb = df_day_combined[df_day_combined['product'] == 'GIFT_BASKET'].reset
 df_day_combined_long = pd.concat([day_comb_cc,day_comb_sb,day_comb_rs,day_comb_gb], axis=1)
 df_day_combined_long.reset_index()
 df_day_combined_long['mid_price_gbb'] = df_day_combined_long['mid_price_cc']*4 + df_day_combined_long['mid_price_sb']*6 +df_day_combined_long['mid_price_rs']*1
-df_day_combined_long['mid_price_rss'] = df_day_combined_long['mid_price_gb'] - df_day_combined_long['mid_price_cc']*4 - df_day_combined_long['mid_price_sb']*6 
+df_day_combined_long['mid_price_rss'] = df_day_combined_long['mid_price_gb'] - df_day_combined_long['mid_price_cc']*4 - df_day_combined_long['mid_price_sb']*6 -379.5
 df_day_combined_long['mid_price_ccc'] = (df_day_combined_long['mid_price_gb'] - df_day_combined_long['mid_price_rs'] - df_day_combined_long['mid_price_sb']*6)/4 
-df_day_combined_long['mid_price_sbb'] = (df_day_combined_long['mid_price_gb'] - df_day_combined_long['mid_price_rs'] - df_day_combined_long['mid_price_cc']*4)/6 
+df_day_combined_long['mid_price_sbb'] = (df_day_combined_long['mid_price_gb'] - df_day_combined_long['mid_price_rs'] - df_day_combined_long['mid_price_cc']*4 - 379.5)/6 
 
 df_day_combined_long['norm_mid_price_gb'] = df_day_combined_long['mid_price_gb']/df_day_combined_long['mid_price_gb'].max()
 df_day_combined_long['norm_mid_price_rs'] = df_day_combined_long['mid_price_rs']/df_day_combined_long['mid_price_rs'].max()
@@ -41,6 +41,7 @@ df_day_combined_long['norm_mid_price_rscc'] = df_day_combined_long['norm_mid_pri
 df_day_combined_long['norm_mid_price_rssb'] = df_day_combined_long['norm_mid_price_rs']+df_day_combined_long['norm_mid_price_sb']
 df_day_combined_long['norm_mid_price_sbcc'] = df_day_combined_long['norm_mid_price_sb']+df_day_combined_long['norm_mid_price_cc']
 
+df_day_combined_long['new_ts'] = (df_day_combined_long['timestamp_gb'])+1000000*df_day_combined_long['day_gb']
 
 df = df_day_combined_long[20001:30000]
 
@@ -73,7 +74,7 @@ plt.show()
 
 df['diff_rs'] = df['norm_mid_price_rs'] - df['average_rs200']
 
-strin = 'diff_rs'
+strin = 'diff_cc'
 print(f"mean:{np.mean(df[strin])};median{np.median(df[strin])};std{np.std(df[strin])}")
 
 sns.distplot(df[strin], hist=True, kde=True, 
@@ -90,7 +91,7 @@ df_day_combined_long['diff_rs'] = df_day_combined_long['mid_price_rss'] - df_day
 df_day_combined_long['diff_cc'] = df_day_combined_long['mid_price_ccc'] - df_day_combined_long['mid_price_cc']
 df_day_combined_long['diff_sb'] = df_day_combined_long['mid_price_sbb'] - df_day_combined_long['mid_price_sb']
 
-strin = 'diff_sb'
+strin = 'diff_cc'
 print(f"mean:{np.mean(df_day_combined_long[strin])};median{np.median(df_day_combined_long[strin])};std{np.std(df_day_combined_long[strin])}")
 
 sns.distplot(df_day_combined_long[strin], hist=True, kde=True, 
@@ -99,10 +100,9 @@ sns.distplot(df_day_combined_long[strin], hist=True, kde=True,
              kde_kws={'linewidth': 4})
 plt.show()
 
-a = pd.concat([day_comb_cc['mid_price_cc'],day_comb_sb['mid_price_sb'],day_comb_rs['mid_price_rs'],day_comb_gb['mid_price_gb']],axis=1)
-a['tot_price'] = 4*a['mid_price_cc'] + 6*a['mid_price_sb'] + a['mid_price_rs']
-a['diff'] = a['mid_price_gb'] - 4*a['mid_price_cc'] - 6*a['mid_price_sb'] - a['mid_price_rs']
-a 
+df_day_combined_long['tot_price'] = 4*df_day_combined_long['mid_price_cc'] + 6*df_day_combined_long['mid_price_sb'] + df_day_combined_long['mid_price_rs']
+df_day_combined_long['diff'] = df_day_combined_long['mid_price_gb'] - 4*df_day_combined_long['mid_price_cc'] - 6*df_day_combined_long['mid_price_sb'] - df_day_combined_long['mid_price_rs']
+a = df_day_combined_long[2000:3000]
 print(f"mean:{np.mean(a['diff'])};median{np.median(a['diff'])};std{np.std(a['diff'])}")
 
 sns.distplot(a['diff'], hist=True, kde=True, 
@@ -110,6 +110,25 @@ sns.distplot(a['diff'], hist=True, kde=True,
              hist_kws={'edgecolor':'black'},
              kde_kws={'linewidth': 4})
 plt.show()
+
+df_day_combined_long['mid_price_gb-379.5'] = df_day_combined_long['mid_price_gb'] - 379.5
+df_day_combined_long['mid_price_cc-94.872'] = df_day_combined_long['mid_price_cc'] + 94.872
+
+
+df = df_day_combined_long
+labels = ['mid_price_ccc','mid_price_cc-94.872']
+plt.plot(df[['new_ts']], df[labels])
+plt.legend(labels)
+plt.show()
+
+df = df_day_combined_long
+labels = ['mid_price_gbb','mid_price_gb-379.5']
+plt.plot(df[['new_ts']], df[labels])
+plt.legend(labels)
+plt.show()
+
+
+
 
  = a['mid_price_gb'] + 379.5 - 4*a['mid_price_cc'] - 6*a['mid_price_sb'] - a['mid_price_rs']
 a['pred_cc'] = (a['mid_price_gb'] - 6*a['mid_price_sb'] - a['mid_price_rs'])/4

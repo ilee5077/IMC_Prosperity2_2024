@@ -9,3 +9,4 @@ prices_round_1_day_combined.xlsx
 *.xlsx
 *.zip
 *.csv
+*.pyc

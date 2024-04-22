@@ -180,6 +180,7 @@ class Trader:
             # now we know the next SF price is going to be - so we can start trade!
             result['STARFRUIT'] = self.compute_orders_starfruit(state, acc_bid = int(round(nxt_SF_price-1,0)), acc_ask = math.floor(nxt_SF_price+1), POSITION_LIMIT = mydata['position_limit'])
             
+        '''
 
         if state.position.get("ORCHIDS",0) > 0:
             mydata['running_buy_price'] += 0.1
@@ -205,7 +206,7 @@ class Trader:
 
         nxt_OC_price = self.next_orchid_price(state)
         result['ORCHIDS'], conversions = self.compute_orders_orchids(state, nxt_OC_price = nxt_OC_price, acc_bid = nxt_OC_price - 1, acc_ask = nxt_OC_price + 1, POSITION_LIMIT = mydata['position_limit'], avg_running_price = average_price)
-        '''
+        
         conversions = None
         orders = self.compute_orders_basket(state.order_depths, state = state, POSITION_LIMIT = mydata['position_limit'], mydata = mydata)
         result['GIFT_BASKET'] += orders['GIFT_BASKET'] 

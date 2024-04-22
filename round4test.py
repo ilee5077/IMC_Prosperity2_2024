@@ -109,49 +109,21 @@ logger = Logger()
 
 class Trader:
     def run(self, state: TradingState) -> tuple[dict[Symbol, list[Order]], int, str]:
-        result = {'CHOCOLATE':[],'STRAWBERRIES':[],'ROSES':[],'GIFT_BASKET':[]}
+        result = {'COCONUT_COUPON': []}
         conversions = 0
         trader_data = ""
         
         ts = state.timestamp
         # test1 arbitrage: buy ingredient and sell gb at the same time
         if ts == 0:
-            result['CHOCOLATE'].append(Order('CHOCOLATE',7751,10))
-            result['CHOCOLATE'].append(Order('CHOCOLATE',7751,-10))
+            result['COCONUT_COUPON'].append(Order('COCONUT_COUPON',619,-1))
+            result['COCONUT_COUPON'].append(Order('COCONUT_COUPON',1000,601))
+        if ts == 300:
             
-            result['STRAWBERRIES'].append(Order('STRAWBERRIES',3985,10))
-            result['STRAWBERRIES'].append(Order('STRAWBERRIES',3985,-10))
-            
-            
-            
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69549,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69550,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69551,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69552,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69553,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69554,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69555,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69556,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69557,3))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69558,3))
-
-            
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69549,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69550,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69551,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69552,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69553,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69554,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69555,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69556,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69557,-2))
-            result['GIFT_BASKET'].append(Order('GIFT_BASKET',69558,-2))
-
-
-        if ts == 200:
-            result['ROSES'].append(Order('ROSES',14421,10))
-            result['ROSES'].append(Order('ROSES',14421,-10))
-
+            result['COCONUT_COUPON'].append(Order('COCONUT_COUPON',1000,600))
+            result['COCONUT_COUPON'].append(Order('COCONUT_COUPON',1000,1))
+        logger.flush(state, result, conversions, trader_data)
+        return result, conversions, trader_data
         '''
         # test2 arbitrage: sell ingredient and buy gb at the same time
         if ts == 1000:
@@ -166,6 +138,3 @@ class Trader:
             result['CHOCOLATE'] = [Order('CHOCOLATE',7000,-2)]
             result['STRAWBERRIES'] = [Order('STRAWBERRIES',4000,-3)]
         '''
-		
-        logger.flush(state, result, conversions, trader_data)
-        return result, conversions, trader_data
