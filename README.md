@@ -1,4 +1,4 @@
-# IMC Prosperity 2
+# IMC Prosperity 2 (WIP)
 in April 2024, I participated in the trading challenge Prosperity 2 hosted by IMC trading for the first time.
 
 Prosperity 2 is a worldwide trading competition that goes for 15 days (although there were some issues with the system and extensions and ended up being 17 days), with 5 rounds of 3 days. each round, the participant works on their trading algorithm to trade new product(s) that are introduced each round and submits answers to a manual trading problem.
@@ -35,7 +35,7 @@ I participated as a solo team, and finished 199 out of 10000 teams. (team name: 
             <td>122,043</td>
             <td>615</td>
             <td></td>
-            <td>a</td>
+            <td></td>
         </tr>
         <tr>
             <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round2.py">2</a></td>
@@ -45,7 +45,7 @@ I participated as a solo team, and finished 199 out of 10000 teams. (team name: 
             <td>161,665</td>
             <td>370</td>
             <td>+245</td>
-            <td>a</td>
+            <td></td>
         </tr>
         <tr>
             <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round3.py">3</a></td>
@@ -55,7 +55,7 @@ I participated as a solo team, and finished 199 out of 10000 teams. (team name: 
             <td>169,774</td>
             <td>314</td>
             <td>+56</td>
-            <td>a</td>
+            <td><a href="https://jmerle.github.io/imc-prosperity-2-visualizer/?open=https://raw.githubusercontent.com/ilee5077/IMC_Prosperity2_2024/main/logs/round3_result.log">link</a></td>
         </tr>
         <tr>
             <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round4.py">4</a></td>
@@ -65,7 +65,7 @@ I participated as a solo team, and finished 199 out of 10000 teams. (team name: 
             <td>363,340</td>
             <td>227</td>
             <td>+87</td>
-            <td>a</td>
+            <td><a href="https://jmerle.github.io/imc-prosperity-2-visualizer/?open=https://raw.githubusercontent.com/ilee5077/IMC_Prosperity2_2024/main/logs/round4_result.log">link</a></td>
         </tr>
         <tr>
             <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round5.py">5</a></td>
@@ -75,7 +75,7 @@ I participated as a solo team, and finished 199 out of 10000 teams. (team name: 
             <td>225,656</td>
             <td>199</td>
             <td>+28</td>
-            <td>a</td>
+            <td><a href="https://jmerle.github.io/imc-prosperity-2-visualizer/?open=https://raw.githubusercontent.com/ilee5077/IMC_Prosperity2_2024/main/logs/round5_result.log">link</a></td>
         </tr>
     </tbody>
 </table>
