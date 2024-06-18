@@ -1,9 +1,9 @@
-# IMC Prosperity 2 (WIP)
+# IMC Prosperity 2
 in April 2024, I participated in the trading challenge Prosperity 2 hosted by IMC trading for the first time.
 
-Prosperity 2 is a worldwide trading competition that goes for 15 days (although there were some issues with the system and extensions and ended up being 17 days), with 5 rounds of 3 days. each round, the participant works on their trading algorithm to trade new product(s) that are introduced each round and submits answers to a manual trading problem.
+Prosperity 2 is a worldwide trading competition that runs for 15 days, with 5 rounds of 3 days. each round, the participant works on their trading algorithm to trade new product(s) that are introduced each round as well as solves a manual trading problem.
 
-I participated as a solo team, and finished 199 out of 10000 teams. (team name: Koreant)
+I participated as a solo team, and finished 199 out of ~10000 teams. (team name: Koreant)
 
 ## Round results
 
@@ -83,24 +83,26 @@ I participated as a solo team, and finished 199 out of 10000 teams. (team name: 
 ## Round summaries
 ### Round 1
 starfruit AMETHYSTS
-in round 1, two tradable products, starfruit and amethysts were introduced. amethysts had price fluctuating by +-3 from mean of 10000. I used market taking strategy where further the price from 10000 the more I traded. also market making strategy as long as I am not crossing the 10000 average I constantly traded 1 unit price better than the current price in the market.
-for starfruit I found using moving average of last 5 timestamp predicted the next price quite well. and used similar strategy to see if the market is currently under/overpriced compared to the next predicted price and traded accordingly.
+in round 1, two tradable products, starfruit and amethysts were introduced. amethysts had price fluctuating by +-3 from mean of 10000. I used market taking strategy where further the price from the mean price, the more I traded. also market making strategy as long as I am not crossing the 10000 average I constantly offered market to trade 1 unit price better than the best price in the market.
+for starfruit, I found using moving average of last 5 timestamp predicted the next price quite well. and used similar trading strategy with the forecasted next price to see if the market is under or overpriced compared and traded accordingly.
 
-the manual trading of round 1 we were asked to give two price to trade with goldfish. where the each goldfish will have a ask price in their mind and I have two opportunity to give offer. gold fish only trades if my offer price is larger than its ask price and I have two chances to give this offer price. the information about the ask price was that it will be between 900 and 1000 and the probability linearly increases. I used linear algebra to solve this.
+the manual trading of round 1 we were asked to give two price to trade with goldfish. where the each goldfish will have a ask price in their mind and I have two opportunity to give offer. gold fish only trades if my offer price is larger than its ask price and I have two chances to give this offer price. the information about the ask price was that it will be between 900 and 1000 and the probability linearly increases. I used simulation to solve this.
 
 ### Round 2
-Orchid had been introduce, which had few interesting characteristics, first is that the production rate of orchid depended on the sunlight and humidity, second is that orchid could be traded with other island as well whilst paying for transportation and storage fees.
-there was a pnl graph error for orchid where if you short large amount of orchid the graph showed that you had a huge profit but at the very last timestamp this was converted back to buy buying orchid and coming back to neutral position.
-when i entered the discord chat I saw that some peoples pnl didnot have jumps like this but gradually increased, I thought it was something to do with conversion and tried to play around but didnt have enough time with work and solo team and realised in the later round how this was done. although I did find the conversion with other island cannot happen as soon as order is filled. but didnt find the below.
-turns out the steps of process was actually,
+Orchid had been introduce, which had few interesting characteristics, first is that the production rate of orchid depended on the sunlight and humidity, second is that orchid could be traded with south island whilst paying for transportation and import/export fees.
+
+there was a pnl graph error for orchid where if you short large amount of orchids the graph showed that you had a huge profit but at the very last timestamp this was converted back by closing the position of orchid.
+when I skimmed through the discussions in discord chat, I saw that some peoples pnl didnot have these jumps but gradually increased, I thought it was something to do with conversion through south island. I didnot have enough time with my full time work and working as solo team and realised in the later round how this was done. Although I did find the conversion with south island cannot happen as soon as order is filled. but turns out the execution steps was actually,
 conversion -> pnl recorded -> order filled
 instead of
-conversion -> order filled -> pnl recorded
-therefore if the position was converted at start of every round you would have not seen any jupms in pnl graph
+conversion -> order filled -> pnl recorded which was my understanding
+therefore if the position was converted at start of every round you would have not seen any jupms in pnl graph.
 
-second manual trading round was to get the highest possible profit given foreign island currency exchange information, for this problem I used the bruteforce method to find out the best serires of exchange as there were only 5 island to exchange from therefore trying out every combination was the easiest to find the best sequence.
+second manual trading round was to get the highest possible profit given foreign island currency exchange information, for this problem I used the bruteforce method to find out the optimal series of exchange as there were only 5 island to exchange. Trying out every combination was the easiest to find the best sequence.
 
-### Round 3
+although I figured the conversion execution steps in round 3, the opportunity for arbitrage substantially dropped after round 2. I wish I had spent more time on investigating this instead of spending too much time to find signals from sunlight and humidity which ultimately had no short term effect on orchids price changes.
+
+### Round 3 (WIP)
 in third round, 5 tradable products were introduced which were strawberries, chocolates, roses and gift basket. gift basket consists of 6 strawberries, 4 chocolates and 1 rose. although we werent allow to buy the content of the product and combine to sell it as gift basket, I was able to find what the true value of basket should be given the content prices. basket were charging the premium of $379.5 and whenever the current price of contents + premium went over/under the basket price I short/long baskets.
 
 third round manual trading was interesting problem, we were given a map of treasures as well as the  treasure hunt
