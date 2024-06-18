@@ -10,13 +10,11 @@ I participated as a solo team, and finished 199 out of ~10000 teams. (team name:
 <table>
     <thead>
         <tr>
-            <th></th>
             <th colspan="4" style="text-align: center">Profit / loss</th>
             <th colspan="2" style="text-align: center">Leaderboard position</th>
             <th colspan="2" style="text-align: center">Visualizer links</th>
         </tr>
         <tr>
-            <th></th>
             <th>Overall</th>
             <th>Manual</th>
             <th>Algo</th>
@@ -28,7 +26,6 @@ I participated as a solo team, and finished 199 out of ~10000 teams. (team name:
     </thead>
     <tbody>
         <tr>
-            <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round1.py">1</a></td>
             <td>122,043</td>
             <td>92,367</td>
             <td>29,676</td>
@@ -38,7 +35,6 @@ I participated as a solo team, and finished 199 out of ~10000 teams. (team name:
             <td></td>
         </tr>
         <tr>
-            <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round2.py">2</a></td>
             <td>283,709</td>
             <td>113,938</td>
             <td>47,727</td>
@@ -48,7 +44,6 @@ I participated as a solo team, and finished 199 out of ~10000 teams. (team name:
             <td></td>
         </tr>
         <tr>
-            <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round3.py">3</a></td>
             <td>453,483</td>
             <td>61,314</td>
             <td>108,460</td>
@@ -58,7 +53,6 @@ I participated as a solo team, and finished 199 out of ~10000 teams. (team name:
             <td><a href="https://jmerle.github.io/imc-prosperity-2-visualizer/?open=https://raw.githubusercontent.com/ilee5077/IMC_Prosperity2_2024/main/logs/round3_result.log">link</a></td>
         </tr>
         <tr>
-            <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round4.py">4</a></td>
             <td>816,823</td>
             <td>99,152</td>
             <td>264,188</td>
@@ -68,7 +62,6 @@ I participated as a solo team, and finished 199 out of ~10000 teams. (team name:
             <td><a href="https://jmerle.github.io/imc-prosperity-2-visualizer/?open=https://raw.githubusercontent.com/ilee5077/IMC_Prosperity2_2024/main/logs/round4_result.log">link</a></td>
         </tr>
         <tr>
-            <td><a href="https://github.com/jmerle/imc-prosperity-2/blob/master/src/submissions/round5.py">5</a></td>
             <td>1,042,480</td>
             <td>58,210</td>
             <td>167,446</td>
