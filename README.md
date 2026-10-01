@@ -1,9 +1,9 @@
 # IMC Prosperity 2
-in April 2024, I participated in the trading challenge Prosperity 2 hosted by IMC trading for the first time.
+in April 2024, I participated in IMC trading's Prosperity 2, a global algorithmic and manual trading competition for the first time.
 
-Prosperity 2 is a worldwide trading competition that runs for 15 days, with 5 rounds of 3 days. each round, the participant works on their trading algorithm to trade new product(s) that are introduced each round as well as solves a manual trading problem.
+Prosperity 2 is a worldwide trading competition that runs for 15 days, with 5 rounds of 3 days. Each round, new products are introduced and participants develop and refine their trading algorithms while also solving a separate manual trading challenge.
 
-I participated as a solo team, and finished 199 out of ~10000 teams. (team name: Koreant)
+I participated as a solo team, and finished 199th out of approximately 10,000 teams. (team name: Koreant)
 
 ## Round results
 
@@ -75,40 +75,48 @@ I participated as a solo team, and finished 199 out of ~10000 teams. (team name:
 
 ## Round summaries
 ### Round 1
-starfruit AMETHYSTS
-in round 1, two tradable products, starfruit and amethysts were introduced. amethysts had price fluctuating by +-3 from mean of 10000. I used market taking strategy where further the price from the mean price, the more I traded. also market making strategy as long as I am not crossing the 10000 average I constantly offered market to trade 1 unit price better than the best price in the market.
-for starfruit, I found using moving average of last 5 timestamp predicted the next price quite well. and used similar trading strategy with the forecasted next price to see if the market is under or overpriced compared and traded accordingly.
+Two tradable products, STARFRUIT and AMETHYSTS, were introduced.
 
-the manual trading of round 1 we were asked to give two price to trade with goldfish. where the each goldfish will have a ask price in their mind and I have two opportunity to give offer. gold fish only trades if my offer price is larger than its ask price and I have two chances to give this offer price. the information about the ask price was that it will be between 900 and 1000 and the probability linearly increases. I used simulation to solve this.
+For AMETHYSTS, the price fluctuated within ±3 of a mean price of 10,000. I used a combination of market taking and market making. For market taking, I traded more aggressively as the market price deviated further from the 10,000 mean, taking advantage of the expected reversion towards fair value. For market making, I continuously placed orders one tick better than the best bid or ask, while avoiding trades that crossed the 10,000 fair-value level.
+
+For STARFRUIT, I found that a five-timestamp moving average provided a useful short-term estimate of the next price. I used this forecast as an estimate of fair value and traded when the market price appeared under- or over-valued relative to the forecast.
+
+For the manual trading challenge, I was given two opportunities to bid for SCUBA_GEAR from a group of goldfish, each with an individual reserve price between 900 and 1,000 SeaShells. The reserve-price distribution increased linearly towards 1,000, and each goldfish would accept the bid if it met or exceeded its reserve price, and any SCUBA_GEAR acquired could subsequently be resold for 1,000 SeaShells.
+
+I used simulation to evaluate the two bids, estimating the expected number of units acquired and the resulting profit for each combination. I then selected the pair of bids that maximised expected profit. ([round1.ipynb](./manual/round1.ipynb))
 
 ### Round 2
-Orchid had been introduce, which had few interesting characteristics, first is that the production rate of orchid depended on the sunlight and humidity, second is that orchid could be traded with south island whilst paying for transportation and import/export fees.
+Round2 introduced ORCHIDs, an asset of which it's production rate was influenced by environmental factors (sunlight and humidity) and tradeable against a foreign exchange on the South Island subject to transport, import, and export tariffs.
 
-there was a pnl graph error for orchid where if you short large amount of orchids the graph showed that you had a huge profit but at the very last timestamp this was converted back by closing the position of orchid.
-when I skimmed through the discussions in discord chat, I saw that some peoples pnl didnot have these jumps but gradually increased, I thought it was something to do with conversion through south island. I didnot have enough time with my full time work and working as solo team and realised in the later round how this was done. Although I did find the conversion with south island cannot happen as soon as order is filled. but turns out the execution steps was actually,
-conversion -> pnl recorded -> order filled
-instead of
-conversion -> order filled -> pnl recorded which was my understanding
-therefore if the position was converted at start of every round you would have not seen any jupms in pnl graph.
+A major technical nuance arose in the PNL accounting for ORCHIDs. Shorting large volumes of ORCHIDs generated massive upward PNL spikes during the round, only for those profits to abruptly collapse on the final timestamp when open positions were force-closed.
 
-second manual trading round was to get the highest possible profit given foreign island currency exchange information, for this problem I used the bruteforce method to find out the optimal series of exchange as there were only 5 island to exchange. Trying out every combination was the easiest to find the best sequence.
+Skimming the Discord discussions revealed that certain participants maintained smooth, steady PNL curves without these visual artifacts. I suspected this was tied to the foreign conversion mechanism—settling local positions directly with the South Archipelago in SeaShells—but balancing a full-time job as a solo competitor delayed my deeper investigation.
 
-although I figured the conversion execution steps in round 3, the opportunity for arbitrage substantially dropped after round 2. I wish I had spent more time on investigating this instead of spending too much time to find signals from sunlight and humidity which ultimately had no short term effect on orchids price changes.
+I initially assumed the engine executed in an Conversion → Order Execution → PNL Recording → Conversion loop. In reality, the simulator's true sequence was Conversion → PNL Recording → Order Execution → Conversion. Because PNL was logged before new orders were processed rather than at the very end of the cycle, executing conversions at the start of each timestamp settled open inventory prior to snapshot logging, eliminating the artificial profit jumps entirely.
 
-### Round 3 (WIP)
-in third round, 5 tradable products were introduced which were strawberries, chocolates, roses and gift basket. gift basket consists of 6 strawberries, 4 chocolates and 1 rose. although we werent allow to buy the content of the product and combine to sell it as gift basket, I was able to find what the true value of basket should be given the content prices. basket were charging the premium of $379.5 and whenever the current price of contents + premium went over/under the basket price I short/long baskets.
+Although I figured the conversion execution steps in round 3, the opportunity for arbitrage substantially dropped after round 2. I wish I had spent more time on deeply investigating simulator's execution order instead of spending too much time to find predictive signals from sunlight and humidity which ultimately had no short term effect on ORCHIDs price movements.
 
-third round manual trading was interesting problem, we were given a map of treasures as well as the  treasure hunt
+For the Manual Trading Challenge, the objective was to maximize SeaShell payout through a sequence of up to 5 FX currency trades, starting and ending in SeaShells across four available currencies (Pizza, Wasabi, Snowballs, and SeaShells). Given the constrained search space of 5-step conversion paths, I implemented a complete brute-force simulation to evaluate every possible sequence combination. This exhaustive search revealed the optimal arbitrage cycle (SeaShells → Pizza → Wasabi → SeaShells → Pizza → SeaShells), guaranteeing the maximum possible return. ([round2.ipynb](./manual/round2.ipynb))
+
+
+### Round 3
+In the third round, 4 interrelated products were introduced: STRAWBERRIES, CHOCOLATES, ROSES and GIFT BASKET. Each GIFT BASKET comprised of 6 STRAWBERRIES, 4 CHOCOLATES and 1 ROSES. Although the trading environment did not support assembling or unbundling of baskets, I was able to find the fair value of basket given the individual component prices. GIFT BASKETS traded at a premium of $379.50 and whenever the market price of GIFT BASKETS diverged from it fair value (sum of component prices plus the premium) I short/long positions.
+
+The Manual Trading Challenge presented a game-theoretic spatial optimisation problem set on a treasure map grid. Each tile on the map offered a base reward of 7.5K SeaShells multiplied by a tile-specific multiplier, but this total payout had to be shared equally among all players who targeted that same location. Because every additional player on a tile diluted the individual reward, even high-multiplier tiles suffered from severe diminishing returns if over-crowded.
 
 ### Round 4
-in fourth round, coconut and coconut coupon was introduced, coconut coupon is a call option where it will give you the right to buy coconut at 10000 at day 250. each round is 1 trading day so we wouldnt get a chance to execute the option but using the black scholes formula and historical prices to estimate the implied volatility, I predicted the price of coconut coupon 
+In the fourth round, COCONUTs and COCONUT COUPONs were introduced. COCONUT COUPON is a call option where it will grant the right to buy COCONUT at a price of 10,000 at day 250. Because each round represented a single trading day, the option could not be held to expiration for physical settlement. Instead, using the Black-Scholes model and historical price of COCONUT to estimate the implied volatility, I derive a fair-value baseline and predict the expected price of the Coconut Coupons.
 
-scuba gear trading with a little twist
+The Manual Trading Challenge extended the sequential auction from Round 1, bringing back the goldfish with reserve prices drawn from the same linearly increasing distribution (900 to 1,000 SeaShells). However, the second-stage bidding mechanism introduced a competitive crowd-dependence twist: a goldfish would accept a second bid if it met their reserve price and exceeded the average second bid across all participants in the archipelago. Bidding below the market average caused the acceptance probability to decay rapidly.
 
 ### Round 5
-no new product was introduced, but the anonymous bots in the market have been disclosed. I look through the volume traded and pnl for all market participants and found Rhianna trades ROSES profitably. Rhianna always bought roses at the lowest price and sold and highest price so i made the algo to copy Rhiannas trades.
+Round 5 introduced no new assets, but the identities of the market’s anonymous algorithmic bots were finally disclosed. By analysing trade volumes and PNL trajectories across all market participants, I identified a distinct counterparty—Rhianna—who traded ROSES with exceptional efficiency, consistently buying at local troughs and selling at peak prices. Recognising her strategic edge, I updated my algorithm to mirror her trades in real time.
 
-for the manual trading we were given a news article about events and were made to decide how much capital to short or long in different products.
+For the final Manual Trading Challenge, we were given a news article detailing macro events across the archipelago. The objective was to analyse the news sentiment and decide how much capital to allocate toward long or short positions across the different products.
 
 ## Reflection
-fun 15 days thinking and learning about trading strategies for given product. manual trading challenges also fun. round 2 is still painful, could have finished in top 25. if I didnt get distracted by false signals and had proper methodical way of testing. wish I had found the online open source tool earlier as I spend long time testing my algo on the competition website and if i found out the tool earlier would have saved a lot of my time spent in iterative optimising parameters.
+Competing over these 15 days was an exceptionally fun and rewarding experience, providing a deep dive into designing tailored trading strategies around unique product characteristics.
+
+Round 2 remains a bittersweet turning point. Had I not been distracted by false environmental signals and instead applied a strict, methodical testing framework, securing a top-25 finish was well within reach.
+
+My primary operational takeaway came down to infrastructure: discovering an open-source local backtesting tool late in the competition revealed just how much efficiency I lost by manually iterating parameters through the competition platform's simulator.
